@@ -131,3 +131,10 @@ If you are working on a project that's related to OpenCode and is using "opencod
 ---
 
 **Join our community** [Discord](https://discord.gg/opencode) | [X.com](https://x.com/opencode)
+
+### Names
+1) Jay Yip
+2) Cathy Wang
+3) Janna Lu
+4) Vlad Miloserdov
+5) Nate Peters
