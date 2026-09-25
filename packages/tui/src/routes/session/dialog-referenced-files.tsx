@@ -1,5 +1,10 @@
 import { DialogSelect } from "../../ui/dialog-select"
-import { groupReferencedFiles, type ReferencedFileRole } from "../../util/referenced-file-role"
+import { DialogAlert } from "../../ui/dialog-alert"
+import {
+  explainReferencedFileRole,
+  groupReferencedFiles,
+  type ReferencedFileRole,
+} from "../../util/referenced-file-role"
 
 const presentation: Record<ReferencedFileRole, { label: string; explanation: string }> = {
   source: {
@@ -44,11 +49,22 @@ export function DialogReferencedFiles(props: { files: string[] }) {
                 title={`${item.label} Files`}
                 placeholder="Search files"
                 footer={<text>{item.explanation}</text>}
-                options={group.files.map((file) => ({
-                  title: file,
-                  value: file,
-                  truncateTitle: "left" as const,
-                }))}
+                options={group.files.map((file) => {
+                  const classification = explainReferencedFileRole(file)
+                  return {
+                    title: file,
+                    value: file,
+                    truncateTitle: "left" as const,
+                    description: "view classification",
+                    onSelect: (dialog) =>
+                      dialog.replace(() => (
+                        <DialogAlert
+                          title="Referenced File"
+                          message={`Path: ${file}\nRole: ${presentation[classification.role].label}\nWhy: ${classification.reason}`}
+                        />
+                      )),
+                  }
+                })}
               />
             )),
         }

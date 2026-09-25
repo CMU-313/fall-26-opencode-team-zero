@@ -7,6 +7,11 @@ export type ReferencedFileGroup = {
   files: string[]
 }
 
+export type ReferencedFileClassification = {
+  role: ReferencedFileRole
+  reason: string
+}
+
 const sourceExtensions = new Set([
   "c",
   "cc",
@@ -75,39 +80,63 @@ const configurationNames = new Set([
 ])
 
 export function classifyReferencedFile(filePath: string): ReferencedFileRole {
+  return explainReferencedFileRole(filePath).role
+}
+
+export function explainReferencedFileRole(filePath: string): ReferencedFileClassification {
   const normalized = filePath.replaceAll("\\", "/").toLowerCase()
   const segments = normalized.split("/").filter(Boolean)
   const filename = segments.at(-1) ?? ""
   const extension = filename.includes(".") ? (filename.split(".").at(-1) ?? "") : ""
 
-  if (segments.includes(".github")) return "configuration"
-
-  if (
-    segments.some((segment) => segment === "test" || segment === "tests" || segment === "__tests__") ||
-    /(^|[._-])(test|tests|spec)([._-]|$)/.test(filename)
-  ) {
-    return "test"
+  if (segments.includes(".github")) {
+    return { role: "configuration", reason: "It is inside the .github configuration directory." }
   }
 
-  if (
-    segments.some((segment) => segment === "docs" || segment === "documentation") ||
-    /^readme(?:\.|$)/.test(filename) ||
-    documentationExtensions.has(extension)
-  ) {
-    return "documentation"
+  if (segments.some((segment) => segment === "test" || segment === "tests" || segment === "__tests__")) {
+    return { role: "test", reason: "It is inside a recognized test directory." }
   }
 
-  if (
-    configurationNames.has(filename) ||
-    configurationExtensions.has(extension) ||
-    /(^|[._-])(config|configuration|settings)([._-]|$)/.test(filename) ||
-    /^\.env(?:\.|$)/.test(filename)
-  ) {
-    return "configuration"
+  if (/(^|[._-])(test|tests|spec)([._-]|$)/.test(filename)) {
+    return { role: "test", reason: "Its filename follows a recognized test or spec convention." }
   }
 
-  if (sourceExtensions.has(extension)) return "source"
-  return "other"
+  if (segments.some((segment) => segment === "docs" || segment === "documentation")) {
+    return { role: "documentation", reason: "It is inside a documentation directory." }
+  }
+
+  if (/^readme(?:\.|$)/.test(filename)) {
+    return { role: "documentation", reason: "Its filename identifies it as a project README." }
+  }
+
+  if (documentationExtensions.has(extension)) {
+    return { role: "documentation", reason: `Its .${extension} extension is commonly used for documentation.` }
+  }
+
+  if (configurationNames.has(filename)) {
+    return { role: "configuration", reason: "Its filename is a recognized project configuration file." }
+  }
+
+  if (configurationExtensions.has(extension)) {
+    return { role: "configuration", reason: `Its .${extension} extension is commonly used for configuration.` }
+  }
+
+  if (/(^|[._-])(config|configuration|settings)([._-]|$)/.test(filename)) {
+    return { role: "configuration", reason: "Its filename contains a configuration convention." }
+  }
+
+  if (/^\.env(?:\.|$)/.test(filename)) {
+    return { role: "configuration", reason: "Its filename identifies it as an environment configuration file." }
+  }
+
+  if (sourceExtensions.has(extension)) {
+    return { role: "source", reason: `Its .${extension} extension is commonly used for source code.` }
+  }
+
+  return {
+    role: "other",
+    reason: "It does not match a recognized source, test, configuration, or documentation convention.",
+  }
 }
 
 export function groupReferencedFiles(files: readonly string[]): ReferencedFileGroup[] {

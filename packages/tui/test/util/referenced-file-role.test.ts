@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { classifyReferencedFile, groupReferencedFiles, referencedFileRoles } from "../../src/util/referenced-file-role"
+import {
+  classifyReferencedFile,
+  explainReferencedFileRole,
+  groupReferencedFiles,
+  referencedFileRoles,
+} from "../../src/util/referenced-file-role"
 
 describe("referenced file role", () => {
   test.each([
@@ -36,5 +41,20 @@ describe("referenced file role", () => {
       { role: "documentation", files: ["README.md"] },
       { role: "other", files: ["assets/logo.png"] },
     ])
+  })
+
+  test.each([
+    ["tests/parser.ts", "test", "It is inside a recognized test directory."],
+    ["parser.spec.ts", "test", "Its filename follows a recognized test or spec convention."],
+    ["README.md", "documentation", "Its filename identifies it as a project README."],
+    ["package.json", "configuration", "Its filename is a recognized project configuration file."],
+    ["src/parser.ts", "source", "Its .ts extension is commonly used for source code."],
+    [
+      "assets/logo.png",
+      "other",
+      "It does not match a recognized source, test, configuration, or documentation convention.",
+    ],
+  ] as const)("explains why %s is classified as %s", (filePath, role, reason) => {
+    expect(explainReferencedFileRole(filePath)).toEqual({ role, reason })
   })
 })
