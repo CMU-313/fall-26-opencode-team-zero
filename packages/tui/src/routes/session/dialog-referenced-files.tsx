@@ -2,7 +2,6 @@ import { createSignal, Show } from "solid-js"
 import { DialogSelect } from "../../ui/dialog-select"
 import {
   explainReferencedFileRole,
-  groupReferencedFiles,
   type ReferencedFileGroup,
   type ReferencedFileRole,
 } from "../../util/referenced-file-role"
@@ -30,8 +29,7 @@ const presentation: Record<ReferencedFileRole, { label: string; explanation: str
   },
 }
 
-export function DialogReferencedFiles(props: { files: string[] }) {
-  const groups = groupReferencedFiles(props.files)
+export function DialogReferencedFiles(props: { groups: ReferencedFileGroup[] }) {
   const [selectedGroup, setSelectedGroup] = createSignal<ReferencedFileGroup>()
   const [selectedFile, setSelectedFile] = createSignal<string>()
 
@@ -42,7 +40,7 @@ export function DialogReferencedFiles(props: { files: string[] }) {
         <DialogSelect
           title="Referenced Files"
           placeholder="Search groups"
-          options={groups.map((group) => {
+          options={props.groups.map((group) => {
             const item = presentation[group.role]
             return {
               title: item.label,

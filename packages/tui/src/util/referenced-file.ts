@@ -1,3 +1,5 @@
+import { groupReferencedFiles } from "./referenced-file-role"
+
 type SessionPart = {
   type: string
   tool?: string
@@ -30,6 +32,14 @@ export function collectReferencedFiles(parts: readonly SessionPart[]) {
     seen.add(normalized)
     return [normalized]
   })
+}
+
+export function collectReferencedFileOverview(parts: readonly SessionPart[]) {
+  const files = collectReferencedFiles(parts)
+  return {
+    files,
+    groups: groupReferencedFiles(files),
+  }
 }
 
 export function referencedFileCountMessage(count: number) {

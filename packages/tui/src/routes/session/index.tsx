@@ -83,7 +83,11 @@ import { getRevertDiffFiles } from "../../util/revert-diff"
 import { OPENCODE_BASE_MODE, useBindings, useCommandShortcut, useOpencodeKeymap } from "../../keymap"
 import { usePathFormatter } from "../../context/path-format"
 import { LocationProvider } from "../../context/location"
-import { collectReferencedFiles, referencedFileCommand, referencedFileCountMessage } from "../../util/referenced-file"
+import {
+  collectReferencedFileOverview,
+  referencedFileCommand,
+  referencedFileCountMessage,
+} from "../../util/referenced-file"
 
 addDefaultParsers(parsers.parsers)
 
@@ -469,13 +473,15 @@ export function Session() {
     {
       ...referencedFileCommand,
       run: () => {
-        const files = collectReferencedFiles(messages().flatMap((message) => sync.data.part[message.id] ?? []))
-        if (files.length === 0) {
-          toast.show({ message: referencedFileCountMessage(files.length), variant: "info" })
+        const overview = collectReferencedFileOverview(
+          messages().flatMap((message) => sync.data.part[message.id] ?? []),
+        )
+        if (overview.files.length === 0) {
+          toast.show({ message: referencedFileCountMessage(overview.files.length), variant: "info" })
           dialog.clear()
           return
         }
-        dialog.replace(() => <DialogReferencedFiles files={files} />)
+        dialog.replace(() => <DialogReferencedFiles groups={overview.groups} />)
       },
     },
     {

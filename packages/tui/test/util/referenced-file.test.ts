@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   collectReferencedFiles,
+  collectReferencedFileOverview,
   referencedFileCommand,
   referencedFileCountMessage,
 } from "../../src/util/referenced-file"
@@ -56,6 +57,28 @@ describe("referenced files", () => {
         { type: "tool", tool: "read", state: { status: "completed", input: null } },
       ]),
     ).toEqual([])
+  })
+
+  test("collects and groups a mixed session reference pipeline", () => {
+    expect(
+      collectReferencedFileOverview([
+        completedRead("README.md"),
+        completedRead("src/index.ts"),
+        completedRead("src\\index.ts"),
+        completedRead("tests/index.test.ts"),
+        completedRead("tsconfig.app.json"),
+        completedRead("assets/logo.png"),
+      ]),
+    ).toEqual({
+      files: ["README.md", "src/index.ts", "tests/index.test.ts", "tsconfig.app.json", "assets/logo.png"],
+      groups: [
+        { role: "source", files: ["src/index.ts"] },
+        { role: "test", files: ["tests/index.test.ts"] },
+        { role: "configuration", files: ["tsconfig.app.json"] },
+        { role: "documentation", files: ["README.md"] },
+        { role: "other", files: ["assets/logo.png"] },
+      ],
+    })
   })
 })
 
