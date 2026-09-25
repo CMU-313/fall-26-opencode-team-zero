@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test"
-import { collectReferencedFiles } from "../../src/util/referenced-file"
+import {
+  collectReferencedFiles,
+  referencedFileCommand,
+  referencedFileCountMessage,
+} from "../../src/util/referenced-file"
 
 describe("referenced files", () => {
   test("collects completed read calls in first-reference order", () => {
@@ -52,6 +56,25 @@ describe("referenced files", () => {
         { type: "tool", tool: "read", state: { status: "completed", input: null } },
       ]),
     ).toEqual([])
+  })
+})
+
+describe("referenced file command", () => {
+  test("registers the group slash command", () => {
+    expect(referencedFileCommand).toEqual({
+      title: "Group referenced files",
+      value: "session.references.group",
+      category: "Session",
+      slash: { name: "group", aliases: [] },
+    })
+  })
+
+  test.each([
+    [0, "No referenced files in this session"],
+    [1, "Found 1 referenced file"],
+    [3, "Found 3 referenced files"],
+  ] as const)("formats feedback for %i files", (count, expected) => {
+    expect(referencedFileCountMessage(count)).toBe(expected)
   })
 })
 

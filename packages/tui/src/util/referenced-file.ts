@@ -8,6 +8,16 @@ type SessionPart = {
   }
 }
 
+export const referencedFileCommand = {
+  title: "Group referenced files",
+  value: "session.references.group",
+  category: "Session",
+  slash: {
+    name: "group",
+    aliases: [],
+  },
+} as const
+
 export function collectReferencedFiles(parts: readonly SessionPart[]) {
   const seen = new Set<string>()
 
@@ -20,6 +30,12 @@ export function collectReferencedFiles(parts: readonly SessionPart[]) {
     seen.add(normalized)
     return [normalized]
   })
+}
+
+export function referencedFileCountMessage(count: number) {
+  if (count === 0) return "No referenced files in this session"
+  if (count === 1) return "Found 1 referenced file"
+  return `Found ${count} referenced files`
 }
 
 function referencedFilePath(part: SessionPart) {

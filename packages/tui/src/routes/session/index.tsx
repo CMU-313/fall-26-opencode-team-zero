@@ -82,6 +82,7 @@ import { getRevertDiffFiles } from "../../util/revert-diff"
 import { OPENCODE_BASE_MODE, useBindings, useCommandShortcut, useOpencodeKeymap } from "../../keymap"
 import { usePathFormatter } from "../../context/path-format"
 import { LocationProvider } from "../../context/location"
+import { collectReferencedFiles, referencedFileCommand, referencedFileCountMessage } from "../../util/referenced-file"
 
 addDefaultParsers(parsers.parsers)
 
@@ -464,6 +465,14 @@ export function Session() {
   }
 
   const sessionCommandList = createMemo(() => [
+    {
+      ...referencedFileCommand,
+      run: () => {
+        const files = collectReferencedFiles(messages().flatMap((message) => sync.data.part[message.id] ?? []))
+        toast.show({ message: referencedFileCountMessage(files.length), variant: "info" })
+        dialog.clear()
+      },
+    },
     {
       title: session()?.share?.url ? "Copy share link" : "Share session",
       value: "session.share",
