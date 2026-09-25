@@ -79,6 +79,12 @@ const configurationNames = new Set([
   "yarn.lock",
 ])
 
+function isConfigurationName(filename: string) {
+  if (configurationNames.has(filename)) return true
+  if (/^(tsconfig|jsconfig)(?:\..+)?\.json$/.test(filename)) return true
+  return /^\.(babelrc|eslintrc|prettierrc)(?:\..+)?$/.test(filename)
+}
+
 export function classifyReferencedFile(filePath: string): ReferencedFileRole {
   return explainReferencedFileRole(filePath).role
 }
@@ -113,7 +119,7 @@ export function explainReferencedFileRole(filePath: string): ReferencedFileClass
     return { role: "documentation", reason: `Its .${extension} extension is commonly used for documentation.` }
   }
 
-  if (configurationNames.has(filename)) {
+  if (isConfigurationName(filename)) {
     return { role: "configuration", reason: "Its filename is a recognized project configuration file." }
   }
 
