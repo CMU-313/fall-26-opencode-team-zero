@@ -1,0 +1,68 @@
+import { describe, expect, test } from "bun:test"
+import { collectReferencedFiles } from "../../src/util/referenced-file"
+
+describe("referenced files", () => {
+  test("collects completed read calls in first-reference order", () => {
+    expect(
+      collectReferencedFiles([
+        completedRead("src/index.ts"),
+        completedRead("test/index.test.ts"),
+        completedRead("package.json"),
+      ]),
+    ).toEqual(["src/index.ts", "test/index.test.ts", "package.json"])
+  })
+
+  test("prefers the resolved display path", () => {
+    expect(
+      collectReferencedFiles([
+        completedRead("src/index.ts", {
+          display: { type: "file", path: "/project/src/index.ts" },
+        }),
+      ]),
+    ).toEqual(["/project/src/index.ts"])
+  })
+
+  test("deduplicates paths and normalizes Windows separators", () => {
+    expect(
+      collectReferencedFiles([
+        completedRead("C:\\project\\src\\index.ts"),
+        completedRead("C:/project/src/index.ts"),
+        completedRead("C:\\project\\test\\index.test.ts"),
+      ]),
+    ).toEqual(["C:/project/src/index.ts", "C:/project/test/index.test.ts"])
+  })
+
+  test("ignores directories and incomplete or unrelated tools", () => {
+    expect(
+      collectReferencedFiles([
+        completedRead("src", { display: { type: "directory", path: "/project/src" } }),
+        { type: "tool", tool: "read", state: { status: "running", input: { filePath: "running.ts" } } },
+        { type: "tool", tool: "read", state: { status: "error", input: { filePath: "missing.ts" } } },
+        { type: "tool", tool: "write", state: { status: "completed", input: { filePath: "written.ts" } } },
+        { type: "text" },
+      ]),
+    ).toEqual([])
+  })
+
+  test("ignores malformed and empty read inputs", () => {
+    expect(
+      collectReferencedFiles([
+        completedRead(""),
+        { type: "tool", tool: "read", state: { status: "completed", input: { filePath: 42 } } },
+        { type: "tool", tool: "read", state: { status: "completed", input: null } },
+      ]),
+    ).toEqual([])
+  })
+})
+
+function completedRead(filePath: string, metadata?: unknown) {
+  return {
+    type: "tool",
+    tool: "read",
+    state: {
+      status: "completed",
+      input: { filePath },
+      metadata,
+    },
+  }
+}
