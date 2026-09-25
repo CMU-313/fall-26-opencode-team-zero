@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { classifyReferencedFile, referencedFileRoles } from "../../src/util/referenced-file-role"
+import { classifyReferencedFile, groupReferencedFiles, referencedFileRoles } from "../../src/util/referenced-file-role"
 
 describe("referenced file role", () => {
   test.each([
@@ -25,5 +25,16 @@ describe("referenced file role", () => {
 
   test("exposes roles in display order", () => {
     expect(referencedFileRoles).toEqual(["source", "test", "configuration", "documentation", "other"])
+  })
+
+  test("groups files in display order and omits empty roles", () => {
+    expect(
+      groupReferencedFiles(["README.md", "src/index.ts", "assets/logo.png", "src/index.test.ts", "src/parser.ts"]),
+    ).toEqual([
+      { role: "source", files: ["src/index.ts", "src/parser.ts"] },
+      { role: "test", files: ["src/index.test.ts"] },
+      { role: "documentation", files: ["README.md"] },
+      { role: "other", files: ["assets/logo.png"] },
+    ])
   })
 })

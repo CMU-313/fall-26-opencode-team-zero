@@ -52,6 +52,7 @@ import type { PromptInfo } from "../../component/prompt/history"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 import { DialogTimeline } from "./dialog-timeline"
 import { DialogForkFromTimeline } from "./dialog-fork-from-timeline"
+import { DialogReferencedFiles } from "./dialog-referenced-files"
 import { DialogSessionRename } from "../../component/dialog-session-rename"
 import { Sidebar } from "./sidebar"
 import { SubagentFooter } from "./subagent-footer.tsx"
@@ -469,8 +470,12 @@ export function Session() {
       ...referencedFileCommand,
       run: () => {
         const files = collectReferencedFiles(messages().flatMap((message) => sync.data.part[message.id] ?? []))
-        toast.show({ message: referencedFileCountMessage(files.length), variant: "info" })
-        dialog.clear()
+        if (files.length === 0) {
+          toast.show({ message: referencedFileCountMessage(files.length), variant: "info" })
+          dialog.clear()
+          return
+        }
+        dialog.replace(() => <DialogReferencedFiles files={files} />)
       },
     },
     {

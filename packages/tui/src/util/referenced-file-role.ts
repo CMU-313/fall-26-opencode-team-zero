@@ -2,6 +2,11 @@ export const referencedFileRoles = ["source", "test", "configuration", "document
 
 export type ReferencedFileRole = (typeof referencedFileRoles)[number]
 
+export type ReferencedFileGroup = {
+  role: ReferencedFileRole
+  files: string[]
+}
+
 const sourceExtensions = new Set([
   "c",
   "cc",
@@ -103,4 +108,15 @@ export function classifyReferencedFile(filePath: string): ReferencedFileRole {
 
   if (sourceExtensions.has(extension)) return "source"
   return "other"
+}
+
+export function groupReferencedFiles(files: readonly string[]): ReferencedFileGroup[] {
+  const groups = new Map<ReferencedFileRole, string[]>(referencedFileRoles.map((role) => [role, []]))
+
+  for (const file of files) groups.get(classifyReferencedFile(file))!.push(file)
+
+  return referencedFileRoles.flatMap((role) => {
+    const grouped = groups.get(role)!
+    return grouped.length ? [{ role, files: grouped }] : []
+  })
 }
