@@ -1,4 +1,4 @@
-import { createSignal, Show } from "solid-js"
+import type { DialogContext } from "../../ui/dialog"
 import { DialogSelect } from "../../ui/dialog-select"
 import {
   explainReferencedFileRole,
@@ -30,80 +30,71 @@ const presentation: Record<ReferencedFileRole, { label: string; explanation: str
 }
 
 export function DialogReferencedFiles(props: { groups: ReferencedFileGroup[] }) {
-  const [selectedGroup, setSelectedGroup] = createSignal<ReferencedFileGroup>()
-  const [selectedFile, setSelectedFile] = createSignal<string>()
+  const options = props.groups.map((group) => {
+    const item = presentation[group.role]
+    return {
+      title: item.label,
+      value: group.role,
+      description: `${group.files.length} ${group.files.length === 1 ? "file" : "files"}`,
+      details: [item.explanation],
+      onSelect: (dialog: DialogContext) =>
+        dialog.replace(() => <DialogReferencedFileList groups={props.groups} group={group} />),
+    }
+  })
+
+  return <DialogSelect title="Referenced Files" placeholder="Search groups" options={options} />
+}
+
+function DialogReferencedFileList(props: { groups: ReferencedFileGroup[]; group: ReferencedFileGroup }) {
+  const item = presentation[props.group.role]
+  const options = [
+    {
+      title: "Back to groups",
+      value: "back",
+      description: "return to all referenced file roles",
+      onSelect: (dialog: DialogContext) => dialog.replace(() => <DialogReferencedFiles groups={props.groups} />),
+    },
+    ...props.group.files.map((file) => ({
+      title: file,
+      value: file,
+      truncateTitle: "left" as const,
+      description: "view classification",
+      onSelect: (dialog: DialogContext) =>
+        dialog.replace(() => <DialogReferencedFileDetail groups={props.groups} group={props.group} file={file} />),
+    })),
+  ]
 
   return (
-    <Show
-      when={selectedGroup()}
-      fallback={
-        <DialogSelect
-          title="Referenced Files"
-          placeholder="Search groups"
-          options={props.groups.map((group) => {
-            const item = presentation[group.role]
-            return {
-              title: item.label,
-              value: group.role,
-              description: `${group.files.length} ${group.files.length === 1 ? "file" : "files"}`,
-              details: [item.explanation],
-              onSelect: () => setSelectedGroup(group),
-            }
-          })}
-        />
-      }
-    >
-      {(group) => (
-        <Show
-          when={selectedFile()}
-          fallback={
-            <DialogSelect
-              title={`${presentation[group().role].label} Files`}
-              placeholder="Search files"
-              footer={<text>{presentation[group().role].explanation}</text>}
-              options={[
-                {
-                  title: "Back to groups",
-                  value: "back",
-                  description: "return to all referenced file roles",
-                  onSelect: () => setSelectedGroup(undefined),
-                },
-                ...group().files.map((file) => ({
-                  title: file,
-                  value: file,
-                  truncateTitle: "left" as const,
-                  description: "view classification",
-                  onSelect: () => setSelectedFile(file),
-                })),
-              ]}
-            />
-          }
-        >
-          {(file) => {
-            const classification = explainReferencedFileRole(file())
-            return (
-              <DialogSelect
-                title="Referenced File"
-                renderFilter={false}
-                options={[
-                  {
-                    title: "Back to files",
-                    value: "back",
-                    description: `return to ${presentation[group().role].label.toLowerCase()}`,
-                    onSelect: () => setSelectedFile(undefined),
-                  },
-                  {
-                    title: presentation[classification.role].label,
-                    value: file(),
-                    description: "detected role",
-                    details: [`Path: ${file()}`, `Why: ${classification.reason}`],
-                  },
-                ]}
-              />
-            )
-          }}
-        </Show>
-      )}
-    </Show>
+    <DialogSelect
+      title={`${item.label} Files`}
+      placeholder="Search files"
+      footer={<text>{item.explanation}</text>}
+      options={options}
+    />
   )
+}
+
+function DialogReferencedFileDetail(props: {
+  groups: ReferencedFileGroup[]
+  group: ReferencedFileGroup
+  file: string
+}) {
+  const classification = explainReferencedFileRole(props.file)
+  const options = [
+    {
+      title: "Back to files",
+      value: "back",
+      description: `return to ${presentation[props.group.role].label.toLowerCase()}`,
+      onSelect: (dialog: DialogContext) =>
+        dialog.replace(() => <DialogReferencedFileList groups={props.groups} group={props.group} />),
+    },
+    {
+      title: presentation[classification.role].label,
+      value: props.file,
+      description: "detected role",
+      details: [`Path: ${props.file}`, `Why: ${classification.reason}`],
+    },
+  ]
+
+  return <DialogSelect title="Referenced File" renderFilter={false} options={options} />
 }
