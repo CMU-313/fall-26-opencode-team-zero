@@ -88,7 +88,11 @@ import {
   referencedFileCommand,
   referencedFileCountMessage,
 } from "../../util/referenced-file"
-import { analyzeRepositoryGroups } from "../../util/repository-functionality"
+import {
+  analyzeRepositoryGroups,
+  buildFunctionalGroupPrompt,
+  type FunctionalGroup,
+} from "../../util/repository-functionality"
 
 addDefaultParsers(parsers.parsers)
 
@@ -495,7 +499,12 @@ export function Session() {
           dialog.clear()
           return
         }
-        dialog.replace(() => <DialogRepositoryMap groups={groups} />)
+        const explain = (group: FunctionalGroup) => {
+          dialog.clear()
+          prompt?.set({ input: buildFunctionalGroupPrompt(group, groups), parts: [] })
+          setTimeout(() => prompt?.submit(), 0)
+        }
+        dialog.replace(() => <DialogRepositoryMap groups={groups} onExplain={explain} />)
       },
     },
     {
