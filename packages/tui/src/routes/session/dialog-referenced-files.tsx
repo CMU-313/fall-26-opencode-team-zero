@@ -29,7 +29,10 @@ const presentation: Record<ReferencedFileRole, { label: string; explanation: str
   },
 }
 
-export function DialogReferencedFiles(props: { groups: ReferencedFileGroup[] }) {
+export function DialogReferencedFiles(props: {
+  groups: ReferencedFileGroup[]
+  onExplain: (group: ReferencedFileGroup) => void
+}) {
   const options = props.groups.map((group) => {
     const item = presentation[group.role]
     return {
@@ -38,21 +41,34 @@ export function DialogReferencedFiles(props: { groups: ReferencedFileGroup[] }) 
       description: `${group.files.length} ${group.files.length === 1 ? "file" : "files"}`,
       details: [item.explanation],
       onSelect: (dialog: DialogContext) =>
-        dialog.replace(() => <DialogReferencedFileList groups={props.groups} group={group} />),
+        dialog.replace(() => (
+          <DialogReferencedFileList groups={props.groups} group={group} onExplain={props.onExplain} />
+        )),
     }
   })
 
   return <DialogSelect title="Referenced Files" placeholder="Search groups" options={options} />
 }
 
-function DialogReferencedFileList(props: { groups: ReferencedFileGroup[]; group: ReferencedFileGroup }) {
+function DialogReferencedFileList(props: {
+  groups: ReferencedFileGroup[]
+  group: ReferencedFileGroup
+  onExplain: (group: ReferencedFileGroup) => void
+}) {
   const item = presentation[props.group.role]
   const options = [
     {
       title: "Back to groups",
       value: "back",
       description: "return to all referenced file roles",
-      onSelect: (dialog: DialogContext) => dialog.replace(() => <DialogReferencedFiles groups={props.groups} />),
+      onSelect: (dialog: DialogContext) =>
+        dialog.replace(() => <DialogReferencedFiles groups={props.groups} onExplain={props.onExplain} />),
+    },
+    {
+      title: "Explain this group",
+      value: "explain",
+      description: "generate a project-specific learning guide",
+      onSelect: () => props.onExplain(props.group),
     },
     ...props.group.files.map((file) => ({
       title: file,
@@ -60,7 +76,14 @@ function DialogReferencedFileList(props: { groups: ReferencedFileGroup[]; group:
       truncateTitle: "left" as const,
       description: "view classification",
       onSelect: (dialog: DialogContext) =>
-        dialog.replace(() => <DialogReferencedFileDetail groups={props.groups} group={props.group} file={file} />),
+        dialog.replace(() => (
+          <DialogReferencedFileDetail
+            groups={props.groups}
+            group={props.group}
+            file={file}
+            onExplain={props.onExplain}
+          />
+        )),
     })),
   ]
 
@@ -78,6 +101,7 @@ function DialogReferencedFileDetail(props: {
   groups: ReferencedFileGroup[]
   group: ReferencedFileGroup
   file: string
+  onExplain: (group: ReferencedFileGroup) => void
 }) {
   const classification = explainReferencedFileRole(props.file)
   const options = [
@@ -86,7 +110,9 @@ function DialogReferencedFileDetail(props: {
       value: "back",
       description: `return to ${presentation[props.group.role].label.toLowerCase()}`,
       onSelect: (dialog: DialogContext) =>
-        dialog.replace(() => <DialogReferencedFileList groups={props.groups} group={props.group} />),
+        dialog.replace(() => (
+          <DialogReferencedFileList groups={props.groups} group={props.group} onExplain={props.onExplain} />
+        )),
     },
     {
       title: presentation[classification.role].label,

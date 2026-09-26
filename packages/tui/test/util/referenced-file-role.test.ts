@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   classifyReferencedFile,
+  buildReferencedFileGroupPrompt,
   explainReferencedFileRole,
   groupReferencedFiles,
   referencedFileRoles,
@@ -62,5 +63,18 @@ describe("referenced file role", () => {
     ],
   ] as const)("explains why %s is classified as %s", (filePath, role, reason) => {
     expect(explainReferencedFileRole(filePath)).toEqual({ role, reason })
+  })
+
+  test("builds a project-specific learning prompt with file evidence", () => {
+    const prompt = buildReferencedFileGroupPrompt({
+      role: "test",
+      files: ["test/parser.test.ts", "test/formatter.test.ts"],
+    })
+
+    expect(prompt).toContain("Explain the test file group in this specific project")
+    expect(prompt).toContain("- test/parser.test.ts")
+    expect(prompt).toContain("- test/formatter.test.ts")
+    expect(prompt).toContain("how they support or challenge the answer to my previous question")
+    expect(prompt).toContain("Cite the relevant file path")
   })
 })

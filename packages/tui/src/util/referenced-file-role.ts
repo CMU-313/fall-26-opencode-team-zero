@@ -155,3 +155,16 @@ export function groupReferencedFiles(files: readonly string[]): ReferencedFileGr
     return grouped.length ? [{ role, files: grouped }] : []
   })
 }
+
+export function buildReferencedFileGroupPrompt(group: ReferencedFileGroup) {
+  const files = group.files.map((file) => `- ${file}`).join("\n")
+  return [
+    `Explain the ${group.role} file group in this specific project:`,
+    files,
+    "",
+    "Base the explanation on evidence from these files and the current conversation, not generic descriptions.",
+    "Explain what the files do, how they relate to each other, and how they support or challenge the answer to my previous question.",
+    "Recommend a reading order and one concrete question I should be able to answer after reading them.",
+    "Cite the relevant file path for every project-specific claim. Re-read the listed files if needed.",
+  ].join("\n")
+}

@@ -88,6 +88,7 @@ import {
   referencedFileCommand,
   referencedFileCountMessage,
 } from "../../util/referenced-file"
+import { buildReferencedFileGroupPrompt, type ReferencedFileGroup } from "../../util/referenced-file-role"
 
 addDefaultParsers(parsers.parsers)
 
@@ -481,7 +482,12 @@ export function Session() {
           dialog.clear()
           return
         }
-        dialog.replace(() => <DialogReferencedFiles groups={overview.groups} />)
+        const explain = (group: ReferencedFileGroup) => {
+          dialog.clear()
+          prompt?.set({ input: buildReferencedFileGroupPrompt(group), parts: [] })
+          setTimeout(() => prompt?.submit(), 0)
+        }
+        dialog.replace(() => <DialogReferencedFiles groups={overview.groups} onExplain={explain} />)
       },
     },
     {
