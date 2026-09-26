@@ -3,15 +3,28 @@ Help a newcomer build a practical mental model of the codebase at `${path}`.
 User-provided focus (use it to narrow the explanation when present):
 $ARGUMENTS
 
-Investigate the repository before answering. Start with high-signal files such as the README, package manifests, workspace configuration, and source entry points. Then inspect only enough implementation and test files to verify the architecture and one real execution path. Do not modify files or run commands that change the repository.
+Before inspecting the repository, always use the question tool to ask one single-choice question:
 
-Present the result with these sections:
+- Header: `Scope`
+- Question: `What would you like to learn about this codebase?`
+- Options:
+  - `All areas (Recommended)` — Show the complete newcomer guide.
+  - `Entry points` — Show where execution begins and what to read first.
+  - `Configuration` — Show the files that control project behavior and tooling.
+  - `Tests` — Show test-only directories, files, and conventions.
+  - `Documentation` — Summarize README and other orientation documents.
+  - `Skip initially` — Show code that does not need to be understood yet.
+- Allow a custom answer so the user can request any other specific area.
+
+Wait for the answer before continuing. Investigate only the selected scope unless the user chooses `All areas (Recommended)`. Start with high-signal files such as the README, package manifests, workspace configuration, and source entry points. Then inspect only enough implementation and test files to verify the requested information. Do not modify files or run commands that change the repository.
+
+For `All areas (Recommended)`, present the result with all of the following sections. For a specific selection, return only the relevant section as a self-contained table with a short introduction.
 
 ## Project overview
 Explain what the project does in a few sentences.
 
 ## Major components
-Present the main parts of the system as a compact Markdown table that renders clearly in the terminal. Use these columns: `Area`, `Category`, `Purpose`, and `Start here`. Categorize important files and directories as frontend, backend, application logic, testing, configuration, or another accurate project-specific category. Put repository paths in backticks, keep every cell concise, and omit categories that do not apply.
+Present the codebase guide as a compact Markdown table that renders clearly in the terminal. Use these columns: `Category`, `Paths`, `What it contains`, and `What to do`. Include rows for `Entry points`, `Configuration`, `Tests only`, `Documentation`, and `Skip initially`; use `Not found` when a category does not exist. Add other project-specific rows, such as frontend, backend, or application logic, when useful. Put repository paths in backticks and keep every cell concise. For the `Documentation` row, summarize what files such as `README.md` tell the newcomer instead of merely listing them. For `Skip initially`, name code the newcomer does not need to understand fully yet and explain why it can wait.
 
 ## Where to start
 List the most important entry-point files in a useful reading order. For each path, explain what the newcomer should learn there.

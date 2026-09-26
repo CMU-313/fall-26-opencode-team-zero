@@ -81,7 +81,7 @@ const layer = Layer.effect(
       commands[Default.NEWCOMER] = {
         name: Default.NEWCOMER,
         description: "explain this codebase to a newcomer",
-        agent: "explore",
+        agent: "build",
         source: "command",
         get template() {
           return PROMPT_NEWCOMER.replace("${path}", ctx.worktree)
