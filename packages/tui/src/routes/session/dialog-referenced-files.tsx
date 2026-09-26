@@ -1,126 +1,114 @@
 import type { DialogContext } from "../../ui/dialog"
 import { DialogSelect } from "../../ui/dialog-select"
-import {
-  explainReferencedFileRole,
-  type ReferencedFileGroup,
-  type ReferencedFileRole,
-} from "../../util/referenced-file-role"
+import type { FunctionalGroup } from "../../util/repository-functionality"
 
-const presentation: Record<ReferencedFileRole, { label: string; explanation: string }> = {
-  source: {
-    label: "Source",
-    explanation: "Implementation files that define the project's behavior.",
-  },
-  test: {
-    label: "Tests",
-    explanation: "Files that verify behavior and guard against regressions.",
-  },
-  configuration: {
-    label: "Configuration",
-    explanation: "Files that control tools, dependencies, builds, and runtime settings.",
-  },
-  documentation: {
-    label: "Documentation",
-    explanation: "Files that explain the project, its architecture, or how to use it.",
-  },
-  other: {
-    label: "Other",
-    explanation: "Referenced files that do not match a recognized project role.",
-  },
+function plural(count: number, noun: string) {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`
 }
 
-export function DialogReferencedFiles(props: {
-  groups: ReferencedFileGroup[]
-  onExplain: (group: ReferencedFileGroup) => void
-}) {
-  const options = props.groups.map((group) => {
-    const item = presentation[group.role]
-    return {
-      title: item.label,
-      value: group.role,
-      description: `${group.files.length} ${group.files.length === 1 ? "file" : "files"}`,
-      details: [item.explanation],
-      onSelect: (dialog: DialogContext) =>
-        dialog.replace(() => (
-          <DialogReferencedFileList groups={props.groups} group={group} onExplain={props.onExplain} />
-        )),
-    }
-  })
-
-  return <DialogSelect title="Referenced Files" placeholder="Search groups" options={options} />
+function basename(file: string) {
+  return file.split("/").at(-1) ?? file
 }
 
-function DialogReferencedFileList(props: {
-  groups: ReferencedFileGroup[]
-  group: ReferencedFileGroup
-  onExplain: (group: ReferencedFileGroup) => void
-}) {
-  const item = presentation[props.group.role]
-  const options = [
-    {
-      title: "Back to groups",
-      value: "back",
-      description: "return to all referenced file roles",
-      onSelect: (dialog: DialogContext) =>
-        dialog.replace(() => <DialogReferencedFiles groups={props.groups} onExplain={props.onExplain} />),
-    },
-    {
-      title: "Explain this group",
-      value: "explain",
-      description: "generate a project-specific learning guide",
-      onSelect: () => props.onExplain(props.group),
-    },
-    ...props.group.files.map((file) => ({
-      title: file,
-      value: file,
-      truncateTitle: "left" as const,
-      description: "view classification",
-      onSelect: (dialog: DialogContext) =>
-        dialog.replace(() => (
-          <DialogReferencedFileDetail
-            groups={props.groups}
-            group={props.group}
-            file={file}
-            onExplain={props.onExplain}
-          />
-        )),
-    })),
+function preview(group: FunctionalGroup) {
+  const files = group.entryFiles.length
+    ? group.entryFiles
+    : group.referencedFiles.length
+      ? group.referencedFiles
+      : group.files
+  const visible = files.slice(0, 3)
+  const remaining = group.files.length - visible.length
+  return [
+    ...visible.map((file) => `│ ${basename(file)}${group.referencedFiles.includes(file) ? "  referenced" : ""}`),
+    ...(remaining > 0 ? [`│ + ${remaining} more`] : []),
+    `└─ ${plural(group.referencedFiles.length, "session reference")}`,
   ]
+}
+
+export function DialogRepositoryMapLoading() {
+  return (
+    <DialogSelect
+      title="Repository Learning Map"
+      renderFilter={false}
+      locked
+      emptyView={<text>Analyzing repository functionality...</text>}
+      options={[]}
+    />
+  )
+}
+
+export function DialogRepositoryMap(props: { groups: FunctionalGroup[] }) {
+  const options = props.groups.map((group) => ({
+    title: `┌─ ${group.title}`,
+    value: group.id,
+    description: plural(group.files.length, "file"),
+    details: preview(group),
+    onSelect: (dialog: DialogContext) =>
+      dialog.replace(() => <DialogFunctionalityFiles groups={props.groups} group={group} />),
+  }))
 
   return (
     <DialogSelect
-      title={`${item.label} Files`}
-      placeholder="Search files"
-      footer={<text>{item.explanation}</text>}
+      title="Repository Learning Map"
+      placeholder="Search functionality"
+      footer={<text>Enter opens a functionality group · referenced marks session evidence</text>}
       options={options}
     />
   )
 }
 
-function DialogReferencedFileDetail(props: {
-  groups: ReferencedFileGroup[]
-  group: ReferencedFileGroup
-  file: string
-  onExplain: (group: ReferencedFileGroup) => void
-}) {
-  const classification = explainReferencedFileRole(props.file)
+function DialogFunctionalityFiles(props: { groups: FunctionalGroup[]; group: FunctionalGroup }) {
+  const options = [
+    {
+      title: "Back to map",
+      value: "back",
+      description: "return to all functionality groups",
+      onSelect: (dialog: DialogContext) => dialog.replace(() => <DialogRepositoryMap groups={props.groups} />),
+    },
+    ...props.group.files.map((file) => ({
+      title: file,
+      value: file,
+      truncateTitle: "left" as const,
+      description: props.group.referencedFiles.includes(file)
+        ? "referenced in this session"
+        : props.group.entryFiles.includes(file)
+          ? "suggested entry point"
+          : undefined,
+      onSelect: (dialog: DialogContext) =>
+        dialog.replace(() => <DialogRepositoryFile groups={props.groups} group={props.group} file={file} />),
+    })),
+  ]
+
+  return (
+    <DialogSelect
+      title={props.group.title}
+      placeholder="Search files"
+      footer={<text>{plural(props.group.files.length, "file")} in this functionality group</text>}
+      options={options}
+    />
+  )
+}
+
+function DialogRepositoryFile(props: { groups: FunctionalGroup[]; group: FunctionalGroup; file: string }) {
+  const labels = [
+    ...(props.group.entryFiles.includes(props.file) ? ["Suggested entry point"] : []),
+    ...(props.group.referencedFiles.includes(props.file) ? ["Referenced in this session"] : []),
+  ]
   const options = [
     {
       title: "Back to files",
       value: "back",
-      description: `return to ${presentation[props.group.role].label.toLowerCase()}`,
+      description: `return to ${props.group.title}`,
       onSelect: (dialog: DialogContext) =>
-        dialog.replace(() => (
-          <DialogReferencedFileList groups={props.groups} group={props.group} onExplain={props.onExplain} />
-        )),
+        dialog.replace(() => <DialogFunctionalityFiles groups={props.groups} group={props.group} />),
     },
     {
-      title: presentation[classification.role].label,
+      title: basename(props.file),
       value: props.file,
-      description: "detected role",
-      details: [`Path: ${props.file}`, `Why: ${classification.reason}`],
+      description: "repository file",
+      details: [`Path: ${props.file}`, `Functionality: ${props.group.title}`, ...labels],
     },
   ]
 
-  return <DialogSelect title="Referenced File" renderFilter={false} options={options} />
+  return <DialogSelect title="File Context" renderFilter={false} options={options} />
 }

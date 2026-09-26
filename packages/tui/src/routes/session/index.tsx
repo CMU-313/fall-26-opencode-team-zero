@@ -52,7 +52,7 @@ import type { PromptInfo } from "../../component/prompt/history"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 import { DialogTimeline } from "./dialog-timeline"
 import { DialogForkFromTimeline } from "./dialog-fork-from-timeline"
-import { DialogReferencedFiles } from "./dialog-referenced-files"
+import { DialogRepositoryMap, DialogRepositoryMapLoading } from "./dialog-referenced-files"
 import { DialogSessionRename } from "../../component/dialog-session-rename"
 import { Sidebar } from "./sidebar"
 import { SubagentFooter } from "./subagent-footer.tsx"
@@ -88,7 +88,7 @@ import {
   referencedFileCommand,
   referencedFileCountMessage,
 } from "../../util/referenced-file"
-import { buildReferencedFileGroupPrompt, type ReferencedFileGroup } from "../../util/referenced-file-role"
+import { analyzeRepositoryGroups } from "../../util/repository-functionality"
 
 addDefaultParsers(parsers.parsers)
 
@@ -473,21 +473,29 @@ export function Session() {
   const sessionCommandList = createMemo(() => [
     {
       ...referencedFileCommand,
-      run: () => {
+      run: async () => {
         const overview = collectReferencedFileOverview(
           messages().flatMap((message) => sync.data.part[message.id] ?? []),
         )
-        if (overview.files.length === 0) {
+        dialog.replace(() => <DialogRepositoryMapLoading />)
+        const result = await sdk.client.find.files({
+          query: "",
+          type: "file",
+          limit: 10_000,
+          workspace: project.workspace.current(),
+        })
+        if (result.error) {
+          toast.show({ message: "Unable to load repository files", variant: "error" })
+          dialog.clear()
+          return
+        }
+        const groups = analyzeRepositoryGroups(result.data ?? [], overview.files)
+        if (groups.length === 0) {
           toast.show({ message: referencedFileCountMessage(overview.files.length), variant: "info" })
           dialog.clear()
           return
         }
-        const explain = (group: ReferencedFileGroup) => {
-          dialog.clear()
-          prompt?.set({ input: buildReferencedFileGroupPrompt(group), parts: [] })
-          setTimeout(() => prompt?.submit(), 0)
-        }
-        dialog.replace(() => <DialogReferencedFiles groups={overview.groups} onExplain={explain} />)
+        dialog.replace(() => <DialogRepositoryMap groups={groups} />)
       },
     },
     {
