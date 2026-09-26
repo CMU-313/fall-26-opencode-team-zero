@@ -1,9 +1,19 @@
 Help a newcomer build a practical mental model of the codebase at `${path}`.
 
-User-provided focus (use it to narrow the explanation when present):
+Requested experience level:
 $ARGUMENTS
 
-Before inspecting the repository, always use the question tool to ask one single-choice question:
+Accept `beginner`, `intermediate`, or `advanced` case-insensitively. If the value is missing or invalid, include this single-choice question in the question tool call:
+
+- Header: `Experience`
+- Question: `What is your experience level?`
+- Options:
+  - `Beginner` — Use plain language, define technical terms, and focus on the smallest useful set of files.
+  - `Intermediate` — Use common development terminology and explain important implementation connections and conventions.
+  - `Advanced` — Include precise architectural details, abstractions, control and data flow, tradeoffs, and relevant functions.
+- Do not allow a custom answer for the experience level.
+
+Always use the same question tool call to ask this single-choice scope question:
 
 - Header: `Scope`
 - Question: `What would you like to learn about this codebase?`
@@ -16,7 +26,7 @@ Before inspecting the repository, always use the question tool to ask one single
   - `Skip initially` — Show code that does not need to be understood yet.
 - Allow a custom answer so the user can request any other specific area.
 
-Wait for the answer before continuing. Investigate only the selected scope unless the user chooses `All areas (Recommended)`. Start with high-signal files such as the README, package manifests, workspace configuration, and source entry points. Then inspect only enough implementation and test files to verify the requested information. Do not modify files or run commands that change the repository.
+Wait for any required experience answer and the scope answer before continuing. Investigate only the selected scope unless the user chooses `All areas (Recommended)`. Start with high-signal files such as the README, package manifests, workspace configuration, and source entry points. Then inspect only enough implementation and test files to verify the requested information. Do not modify files or run commands that change the repository.
 
 For `All areas (Recommended)`, present the result with all of the following sections. For a specific selection, return only the relevant section as a self-contained table with a short introduction.
 
@@ -38,4 +48,4 @@ Trace one representative feature or request through the codebase in order. Use a
 ## Suggested next steps
 Give a short sequence of concrete reading or exploration steps.
 
-Use beginner-friendly language. Define necessary technical terms in plain language, avoid unexplained jargon, cite real repository paths, and distinguish verified facts from reasonable inferences.
+Match the requested experience level throughout the response. For beginners, use plain language, define necessary technical terms, avoid unexplained jargon, and favor orientation over implementation detail. For intermediate users, use standard development terminology and connect the major implementation pieces. For advanced users, be concise and technically precise, including relevant functions, abstractions, control and data flow, and tradeoffs. At every level, cite real repository paths and distinguish verified facts from reasonable inferences.

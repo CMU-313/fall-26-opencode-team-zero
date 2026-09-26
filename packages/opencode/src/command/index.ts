@@ -80,7 +80,7 @@ const layer = Layer.effect(
       }
       commands[Default.NEWCOMER] = {
         name: Default.NEWCOMER,
-        description: "explain this codebase to a newcomer",
+        description: "explain this codebase [beginner|intermediate|advanced]",
         agent: "build",
         source: "command",
         get template() {
