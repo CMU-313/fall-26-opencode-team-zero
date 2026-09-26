@@ -2413,6 +2413,29 @@ noLLMServer.instance(
 )
 
 noLLMServer.instance(
+  "newcomer command provides guided codebase exploration",
+  () =>
+    Effect.gen(function* () {
+      const commands = yield* Command.Service
+      const newcomer = yield* commands.get(Command.Default.NEWCOMER)
+
+      expect(newcomer).toBeDefined()
+      expect(newcomer?.description).toBe("explain this codebase to a newcomer")
+      expect(newcomer?.agent).toBe("explore")
+      expect(newcomer?.source).toBe("command")
+      expect(newcomer?.hints).toEqual(["$ARGUMENTS"])
+
+      const template = yield* Effect.promise(() => Promise.resolve(newcomer?.template))
+      expect(template).toContain("Major components")
+      expect(template).toContain("Where to start")
+      expect(template).toContain("What to skip for now")
+      expect(template).toContain("Trace one representative feature or request")
+      expect(template).toContain("beginner-friendly language")
+    }),
+  30_000,
+)
+
+noLLMServer.instance(
   "unknown command throws typed error with available names",
   () =>
     Effect.gen(function* () {

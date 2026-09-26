@@ -1,0 +1,28 @@
+Help a newcomer build a practical mental model of the codebase at `${path}`.
+
+User-provided focus (use it to narrow the explanation when present):
+$ARGUMENTS
+
+Investigate the repository before answering. Start with high-signal files such as the README, package manifests, workspace configuration, and source entry points. Then inspect only enough implementation and test files to verify the architecture and one real execution path. Do not modify files or run commands that change the repository.
+
+Present the result with these sections:
+
+## Project overview
+Explain what the project does in a few sentences.
+
+## Major components
+Identify the main parts of the system and clearly explain what each part is responsible for. Categorize important files and directories as frontend, backend, application logic, testing, configuration, or another accurate project-specific category. Omit categories that do not apply.
+
+## Where to start
+List the most important entry-point files in a useful reading order. For each path, explain what the newcomer should learn there.
+
+## What to skip for now
+Identify generated code, build output, vendored dependencies, or low-level areas that are not useful for an initial understanding. Explain briefly why each can wait.
+
+## Representative feature flow
+Trace one representative feature or request through the codebase in order. Name the major files and functions involved and explain how control or data moves between them. Only describe relationships verified from the code.
+
+## Suggested next steps
+Give a short sequence of concrete reading or exploration steps.
+
+Use beginner-friendly language. Define necessary technical terms in plain language, avoid unexplained jargon, cite real repository paths, and distinguish verified facts from reasonable inferences.
