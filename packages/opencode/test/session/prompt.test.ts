@@ -2427,9 +2427,11 @@ noLLMServer.instance(
 
       const template = yield* Effect.promise(() => Promise.resolve(newcomer?.template))
       expect(template).toContain("Major components")
+      expect(template).toContain("`Area`, `Category`, `Purpose`, and `Start here`")
       expect(template).toContain("Where to start")
       expect(template).toContain("What to skip for now")
       expect(template).toContain("Trace one representative feature or request")
+      expect(template).toContain("`Step`, `File or function`, and `What happens`")
       expect(template).toContain("beginner-friendly language")
     }),
   30_000,

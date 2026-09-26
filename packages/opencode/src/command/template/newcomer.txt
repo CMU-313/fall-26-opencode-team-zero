@@ -11,7 +11,7 @@ Present the result with these sections:
 Explain what the project does in a few sentences.
 
 ## Major components
-Identify the main parts of the system and clearly explain what each part is responsible for. Categorize important files and directories as frontend, backend, application logic, testing, configuration, or another accurate project-specific category. Omit categories that do not apply.
+Present the main parts of the system as a compact Markdown table that renders clearly in the terminal. Use these columns: `Area`, `Category`, `Purpose`, and `Start here`. Categorize important files and directories as frontend, backend, application logic, testing, configuration, or another accurate project-specific category. Put repository paths in backticks, keep every cell concise, and omit categories that do not apply.
 
 ## Where to start
 List the most important entry-point files in a useful reading order. For each path, explain what the newcomer should learn there.
@@ -20,7 +20,7 @@ List the most important entry-point files in a useful reading order. For each pa
 Identify generated code, build output, vendored dependencies, or low-level areas that are not useful for an initial understanding. Explain briefly why each can wait.
 
 ## Representative feature flow
-Trace one representative feature or request through the codebase in order. Name the major files and functions involved and explain how control or data moves between them. Only describe relationships verified from the code.
+Trace one representative feature or request through the codebase in order. Use a Markdown table with the columns `Step`, `File or function`, and `What happens`. Only describe relationships verified from the code.
 
 ## Suggested next steps
 Give a short sequence of concrete reading or exploration steps.
