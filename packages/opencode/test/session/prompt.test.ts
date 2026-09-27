@@ -2428,6 +2428,9 @@ noLLMServer.instance(
       const template = yield* Effect.promise(() => Promise.resolve(newcomer?.template))
       expect(template).toContain("The command has already collected the experience level and scope")
       expect(template).toContain("Investigate only the selected scope")
+      expect(template).toContain("Return the guide as Markdown tables, not an essay")
+      expect(template).toContain("Do not write explanatory paragraphs or prose lists")
+      expect(template).toContain("`Topic` and `Summary`")
       expect(template).toContain("Match the requested experience level")
       expect(template).toContain("For beginners")
       expect(template).toContain("For intermediate users")
@@ -2437,9 +2440,12 @@ noLLMServer.instance(
       expect(template).toContain("`Entry points`, `Configuration`, `Tests only`, `Documentation`, and `Skip initially`")
       expect(template).toContain("summarize what files such as `README.md` tell the newcomer")
       expect(template).toContain("Where to start")
+      expect(template).toContain("`Order`, `Path`, and `What to learn`")
       expect(template).toContain("What to skip for now")
+      expect(template).toContain("`Path or area`, `Why to skip it`, and `When to revisit`")
       expect(template).toContain("Trace one representative feature or request")
       expect(template).toContain("`Step`, `File or function`, and `What happens`")
+      expect(template).toContain("`Step`, `Action`, and `Expected outcome`")
       expect(template).toContain("Development setup")
       expect(template).toContain("`Task`, `Command`, `Run from`, and `Notes`")
       expect(template).toContain("do not guess commands")
@@ -2464,6 +2470,7 @@ noLLMServer.instance(
       const request = yield* pollWithTimeout(
         questions.list().pipe(Effect.map((items) => items[0])),
         "newcomer questions did not appear",
+        "20 seconds",
       )
 
       expect(request.questions.map((item) => item.header)).toEqual(["Experience", "Scope"])
@@ -2503,6 +2510,7 @@ noLLMServer.instance(
       const request = yield* pollWithTimeout(
         questions.list().pipe(Effect.map((items) => items[0])),
         "newcomer scope question did not appear",
+        "20 seconds",
       )
 
       expect(request.questions.map((item) => item.header)).toEqual(["Scope"])

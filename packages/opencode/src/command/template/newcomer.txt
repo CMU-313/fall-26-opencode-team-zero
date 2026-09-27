@@ -5,25 +5,25 @@ $ARGUMENTS
 
 The command has already collected the experience level and scope from the user. Investigate only the selected scope unless the user chose `All areas`. Start with high-signal files such as the README, package manifests, workspace configuration, and source entry points. Then inspect only enough implementation and test files to verify the requested information. Do not modify files or run commands that change the repository.
 
-For `All areas`, present the result with all of the following sections. For a specific selection, return only the relevant section as a self-contained table with a short introduction.
+Return the guide as Markdown tables, not an essay. Do not write explanatory paragraphs or prose lists before, between, or after the tables. A short title is allowed. For `All areas`, present all of the following table sections. For a specific selection, return only the relevant self-contained table.
 
 ## Project overview
-Explain what the project does in a few sentences.
+Use a Markdown table with the columns `Topic` and `Summary`. Explain the project's purpose, primary users, and main technology in concise cells.
 
 ## Major components
 Present the codebase guide as a compact Markdown table that renders clearly in the terminal. Use these columns: `Category`, `Paths`, `What it contains`, and `What to do`. Include rows for `Entry points`, `Configuration`, `Tests only`, `Documentation`, and `Skip initially`; use `Not found` when a category does not exist. Add other project-specific rows, such as frontend, backend, or application logic, when useful. Put repository paths in backticks and keep every cell concise. For the `Documentation` row, summarize what files such as `README.md` tell the newcomer instead of merely listing them. For `Skip initially`, name code the newcomer does not need to understand fully yet and explain why it can wait.
 
 ## Where to start
-List the most important entry-point files in a useful reading order. For each path, explain what the newcomer should learn there.
+Use a Markdown table with the columns `Order`, `Path`, and `What to learn`. Put the most important entry-point files in a useful reading order.
 
 ## What to skip for now
-Identify generated code, build output, vendored dependencies, or low-level areas that are not useful for an initial understanding. Explain briefly why each can wait.
+Use a Markdown table with the columns `Path or area`, `Why to skip it`, and `When to revisit`. Include generated code, build output, vendored dependencies, or low-level areas that are not useful for an initial understanding.
 
 ## Representative feature flow
 Trace one representative feature or request through the codebase in order. Use a Markdown table with the columns `Step`, `File or function`, and `What happens`. Only describe relationships verified from the code.
 
 ## Suggested next steps
-Give a short sequence of concrete reading or exploration steps.
+Use a Markdown table with the columns `Step`, `Action`, and `Expected outcome`. Keep the sequence short and concrete.
 
 ## Development setup
 Present a Markdown table with the columns `Task`, `Command`, `Run from`, and `Notes`. Include installation, development, focused testing, linting, typechecking, and code generation only when applicable. Copy commands from executable project sources such as package scripts, task files, or CI configuration; do not guess commands. Clearly mark prerequisites and commands that require external services.
