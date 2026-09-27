@@ -1816,6 +1816,26 @@ unix(
   30_000,
 )
 
+it.instance("associate command expands the source file argument", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(providerCfg)
+    const { prompt, chat } = yield* boot()
+    yield* llm.text("done")
+
+    const result = yield* prompt.command({
+      sessionID: chat.id,
+      command: "associate",
+      arguments: "src/session/prompt.ts",
+    })
+
+    expect(result.info.role).toBe("assistant")
+    const inputs = yield* llm.inputs
+    const messages = JSON.stringify(inputs.at(-1)?.messages)
+    expect(messages).toContain("Associate every function in the provided source file")
+    expect(messages).toContain("Input file: src/session/prompt.ts")
+  }),
+)
+
 unixNoLLMServer(
   "cancel interrupts shell and resolves cleanly",
   () =>
