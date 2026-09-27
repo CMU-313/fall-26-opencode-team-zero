@@ -6,14 +6,12 @@ import { buildCodeSuggestionPrompt, buildExplanationPrompt } from "./explain"
 
 const TERMINAL_NAME = "opencode"
 const LEARN_TERMINAL_NAME = "opencode learn preview"
-const LEARN_MODE_PREVIEW_KEY = "opencode.learnModePreview"
+
 const SERVER_READY_RETRIES = 60
 const SERVER_READY_DELAY_MS = 250
 const TUI_READY_DELAY_MS = 1500
 
 export function activate(context: vscode.ExtensionContext) {
-  let learnModePreview = context.workspaceState.get<boolean>(LEARN_MODE_PREVIEW_KEY, false)
-  void vscode.commands.executeCommand("setContext", LEARN_MODE_PREVIEW_KEY, learnModePreview)
 
   const openNewTerminalDisposable = vscode.commands.registerCommand("opencode.openNewTerminal", async () => {
     await openTerminal()
@@ -50,11 +48,6 @@ export function activate(context: vscode.ExtensionContext) {
   })
 
   const explainSelectionDisposable = vscode.commands.registerCommand("opencode.explainSelection", async () => {
-    if (!learnModePreview) {
-      await vscode.window.showInformationMessage("Enable Learn Mode Preview before asking opencode to explain code.")
-      return
-    }
-
     const activeEditor = vscode.window.activeTextEditor
     if (!activeEditor || activeEditor.selection.isEmpty) {
       await vscode.window.showInformationMessage("Highlight some code before asking opencode to explain it.")
@@ -85,11 +78,6 @@ export function activate(context: vscode.ExtensionContext) {
   })
 
   const suggestCodeDisposable = vscode.commands.registerCommand("opencode.suggestCode", async () => {
-    if (!learnModePreview) {
-      await vscode.window.showInformationMessage("Enable Learn Mode Preview before asking opencode for a suggestion.")
-      return
-    }
-
     const activeEditor = vscode.window.activeTextEditor
     if (!activeEditor) {
       await vscode.window.showInformationMessage("Open a code file before asking opencode for a suggestion.")
@@ -124,25 +112,12 @@ export function activate(context: vscode.ExtensionContext) {
     })
   })
 
-  const toggleLearnModePreviewDisposable = vscode.commands.registerCommand(
-    "opencode.toggleLearnModePreview",
-    async () => {
-      learnModePreview = !learnModePreview
-      await context.workspaceState.update(LEARN_MODE_PREVIEW_KEY, learnModePreview)
-      await vscode.commands.executeCommand("setContext", LEARN_MODE_PREVIEW_KEY, learnModePreview)
-      await vscode.window.showInformationMessage(
-        `OpenCode Learn Mode Preview ${learnModePreview ? "enabled" : "disabled"}.`,
-      )
-    },
-  )
-
   context.subscriptions.push(
     openNewTerminalDisposable,
     openTerminalDisposable,
     addFilepathDisposable,
     explainSelectionDisposable,
     suggestCodeDisposable,
-    toggleLearnModePreviewDisposable,
   )
 
   async function openTerminal(input?: {
