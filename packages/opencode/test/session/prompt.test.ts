@@ -2426,13 +2426,7 @@ noLLMServer.instance(
       expect(newcomer?.hints).toEqual(["$ARGUMENTS"])
 
       const template = yield* Effect.promise(() => Promise.resolve(newcomer?.template))
-      expect(template).toContain("Accept `beginner`, `intermediate`, or `advanced` case-insensitively")
-      expect(template).toContain("What is your experience level?")
-      expect(template).toContain("Always use the same question tool call")
-      expect(template).toContain("What would you like to learn about this codebase?")
-      expect(template).toContain("All areas (Recommended)")
-      expect(template).toContain("Allow a custom answer")
-      expect(template).toContain("Wait for any required experience answer and the scope answer before continuing")
+      expect(template).toContain("The command has already collected the experience level and scope")
       expect(template).toContain("Investigate only the selected scope")
       expect(template).toContain("Match the requested experience level")
       expect(template).toContain("For beginners")
@@ -2446,6 +2440,75 @@ noLLMServer.instance(
       expect(template).toContain("What to skip for now")
       expect(template).toContain("Trace one representative feature or request")
       expect(template).toContain("`Step`, `File or function`, and `What happens`")
+      expect(template).toContain("Development setup")
+      expect(template).toContain("`Task`, `Command`, `Run from`, and `Notes`")
+      expect(template).toContain("do not guess commands")
+      expect(template).toContain("First contribution ideas")
+      expect(template).toContain("`Area`, `Why it is approachable`, `Start with`, and `How to verify`")
+      expect(template).toContain("Do not claim that an issue exists")
+    }),
+  30_000,
+)
+
+noLLMServer.instance(
+  "newcomer command asks for experience and scope before prompting the model",
+  () =>
+    Effect.gen(function* () {
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const questions = yield* Question.Service
+      const session = yield* sessions.create({})
+      const command = yield* prompt
+        .command({ sessionID: session.id, command: Command.Default.NEWCOMER, arguments: "" })
+        .pipe(Effect.forkChild)
+      const request = yield* pollWithTimeout(
+        questions.list().pipe(Effect.map((items) => items[0])),
+        "newcomer questions did not appear",
+      )
+
+      expect(request.questions.map((item) => item.header)).toEqual(["Experience", "Scope"])
+      expect(request.questions[0]?.options.map((item) => item.label)).toEqual([
+        "Beginner",
+        "Intermediate",
+        "Advanced",
+      ])
+      expect(request.questions[1]?.options.map((item) => item.label)).toEqual([
+        "All areas",
+        "Entry points",
+        "Configuration",
+        "Tests",
+        "Documentation",
+        "Skip initially",
+        "Development setup",
+        "First contribution",
+      ])
+
+      yield* questions.reject(request.id)
+      yield* Fiber.await(command)
+    }),
+  30_000,
+)
+
+noLLMServer.instance(
+  "newcomer command with a valid experience asks only for scope",
+  () =>
+    Effect.gen(function* () {
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const questions = yield* Question.Service
+      const session = yield* sessions.create({})
+      const command = yield* prompt
+        .command({ sessionID: session.id, command: Command.Default.NEWCOMER, arguments: "beginner" })
+        .pipe(Effect.forkChild)
+      const request = yield* pollWithTimeout(
+        questions.list().pipe(Effect.map((items) => items[0])),
+        "newcomer scope question did not appear",
+      )
+
+      expect(request.questions.map((item) => item.header)).toEqual(["Scope"])
+
+      yield* questions.reject(request.id)
+      yield* Fiber.await(command)
     }),
   30_000,
 )
