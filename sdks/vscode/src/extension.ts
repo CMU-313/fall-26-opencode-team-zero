@@ -9,7 +9,7 @@ const LEARN_TERMINAL_NAME = "opencode learn preview"
 const LEARN_MODE_PREVIEW_KEY = "opencode.learnModePreview"
 const SERVER_READY_RETRIES = 60
 const SERVER_READY_DELAY_MS = 250
-const TUI_READY_DELAY_MS = 500
+const TUI_READY_DELAY_MS = 1500
 
 export function activate(context: vscode.ExtensionContext) {
   let learnModePreview = context.workspaceState.get<boolean>(LEARN_MODE_PREVIEW_KEY, false)
