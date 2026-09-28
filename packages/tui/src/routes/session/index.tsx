@@ -83,14 +83,7 @@ import { getRevertDiffFiles } from "../../util/revert-diff"
 import { OPENCODE_BASE_MODE, useBindings, useCommandShortcut, useOpencodeKeymap } from "../../keymap"
 import { usePathFormatter } from "../../context/path-format"
 import { LocationProvider } from "../../context/location"
-import { collectReferencedFiles, referencedFileCommand } from "../../util/referenced-file"
-import {
-  analyzeRepositoryGroups,
-  applyGroupNames,
-  buildFunctionalGroupPrompt,
-  buildGroupNamingPrompt,
-  type FunctionalGroup,
-} from "../../util/repository-functionality"
+import { analyzeRepositoryGroups } from "../../util/repository-functionality"
 
 addDefaultParsers(parsers.parsers)
 
@@ -474,11 +467,11 @@ export function Session() {
 
   const sessionCommandList = createMemo(() => [
     {
-      ...referencedFileCommand,
+      title: "Explore repository groups",
+      value: "session.references.group",
+      category: "Session",
+      slash: { name: "group", aliases: [] },
       run: async () => {
-        const referencedFiles = collectReferencedFiles(
-          messages().flatMap((message) => sync.data.part[message.id] ?? []),
-        )
         dialog.replace(() => <DialogRepositoryMapLoading />)
         const result = await sdk.client.find.files({
           query: "",
@@ -491,37 +484,13 @@ export function Session() {
           dialog.clear()
           return
         }
-        let groups = analyzeRepositoryGroups(result.data ?? [], referencedFiles)
+        const groups = analyzeRepositoryGroups(result.data ?? [])
         if (groups.length === 0) {
           toast.show({ message: "No repository files found", variant: "info" })
           dialog.clear()
           return
         }
-        const namingSession = await sdk.client.session.create({ workspace: project.workspace.current() })
-        if (namingSession.data) {
-          try {
-            const naming = await sdk.client.session.prompt({
-              sessionID: namingSession.data.id,
-              workspace: project.workspace.current(),
-              parts: [{ type: "text", text: buildGroupNamingPrompt(groups) }],
-            })
-            const text = naming.data?.parts
-              .filter((part) => part.type === "text")
-              .map((part) => part.text)
-              .join("\n")
-            if (text) groups = applyGroupNames(groups, text)
-          } catch {
-            // Structural names remain available when model naming fails.
-          } finally {
-            await sdk.client.session.delete({ sessionID: namingSession.data.id }).catch(() => undefined)
-          }
-        }
-        const explain = (group: FunctionalGroup) => {
-          dialog.clear()
-          prompt?.set({ input: buildFunctionalGroupPrompt(group, groups), parts: [] })
-          setTimeout(() => prompt?.submit(), 0)
-        }
-        dialog.replace(() => <DialogRepositoryMap groups={groups} onExplain={explain} />)
+        dialog.replace(() => <DialogRepositoryMap groups={groups} />)
       },
     },
     {
