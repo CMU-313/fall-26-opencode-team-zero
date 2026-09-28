@@ -18,7 +18,7 @@ export function DialogRepositoryMapLoading() {
   )
 }
 
-export function DialogRepositoryMap(props: { groups: FunctionalGroup[] }) {
+export function DialogRepositoryMap(props: { groups: FunctionalGroup[]; onExplain: (area: LearningArea) => void }) {
   return (
     <DialogSelect
       title="Repository Learning Map"
@@ -38,7 +38,11 @@ export function DialogRepositoryMap(props: { groups: FunctionalGroup[] }) {
   )
 }
 
-function DialogGroup(props: { groups: FunctionalGroup[]; group: FunctionalGroup }) {
+function DialogGroup(props: {
+  groups: FunctionalGroup[]
+  group: FunctionalGroup
+  onExplain: (area: LearningArea) => void
+}) {
   return (
     <DialogSelect
       title={props.group.title}
@@ -49,7 +53,13 @@ function DialogGroup(props: { groups: FunctionalGroup[]; group: FunctionalGroup 
           title: "Back to map",
           value: "back",
           onSelect: (dialog: DialogContext) =>
-            dialog.replace(() => <DialogRepositoryMap groups={props.groups} />),
+            dialog.replace(() => <DialogRepositoryMap groups={props.groups} onExplain={props.onExplain} />),
+        },
+        {
+          title: "EXPLAIN THIS FUNCTIONALITY",
+          value: "explain",
+          description: "relationships, reading order, and learning question",
+          onSelect: () => props.onExplain(props.group),
         },
         ...props.group.subgroups.map((subgroup) => ({
           title: subgroup.title,
@@ -68,6 +78,7 @@ function DialogSubgroup(props: {
   group: FunctionalGroup
   subgroup: LearningArea
   page: number
+  onExplain: (area: LearningArea) => void
 }) {
   const pages = Math.max(1, Math.ceil(props.subgroup.files.length / pageSize))
   const files = props.subgroup.files.slice(props.page * pageSize, (props.page + 1) * pageSize)
@@ -83,7 +94,13 @@ function DialogSubgroup(props: {
           title: "Back to subgroups",
           value: "back",
           onSelect: (dialog: DialogContext) =>
-            dialog.replace(() => <DialogGroup groups={props.groups} group={props.group} />),
+            dialog.replace(() => <DialogGroup groups={props.groups} group={props.group} onExplain={props.onExplain} />),
+        },
+        {
+          title: "EXPLAIN THIS SUBGROUP",
+          value: "explain",
+          description: "generate a focused learning guide",
+          onSelect: () => props.onExplain(props.subgroup),
         },
         ...(props.page > 0
           ? [
