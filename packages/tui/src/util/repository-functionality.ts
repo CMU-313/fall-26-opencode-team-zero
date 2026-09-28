@@ -1,28 +1,15 @@
-import path from "path"
-
-export type RepositoryFile = { path: string; imports?: readonly string[] }
-
-export type GroupRelationship = {
-  from: string
-  to: string
-  kind: "imports"
-  evidence: string[]
-}
-
 export type FunctionalGroup = {
   id: string
   title: string
   root: string
   files: string[]
   referencedFiles: string[]
-  entryFiles: string[]
-  relationships: GroupRelationship[]
 }
 
-type FileRecord = RepositoryFile & { groupID: string }
-
-const entryNames = new Set(["index.ts", "index.tsx", "index.js", "index.jsx", "main.ts", "main.tsx", "main.js"])
 const ignoredSegments = new Set([".git", "node_modules", "coverage", "dist", "build", ".turbo"])
+const sourceRoots = new Set(["src", "lib", "test", "tests", "spec"])
+const workspaceRoots = new Set(["apps", "packages", "modules", "services"])
+const maxGroups = 30
 
 function normalize(file: string) {
   return file
@@ -31,210 +18,116 @@ function normalize(file: string) {
     .replace(/\/{2,}/g, "/")
 }
 
-const packageAreas: Record<string, string> = {
-  app: "Shared User Interface",
-  ui: "Shared User Interface",
-  "session-ui": "Shared User Interface",
-  web: "Web Application",
-  desktop: "Desktop Application",
-  tui: "Terminal User Interface",
-  core: "Core Infrastructure",
-  sdk: "SDK and Extensions",
-  plugin: "SDK and Extensions",
-  llm: "Model Integration",
-  console: "Cloud and Console",
-  enterprise: "Cloud and Console",
-  stats: "Cloud and Console",
-  cli: "Command Line Interface",
-  codemode: "Code Mode",
-}
+function areaRoot(file: string) {
+  const directories = file.split("/").slice(0, -1)
+  if (!directories.length) return "."
 
-const opencodeAreas: Record<string, string> = {
-  agent: "Agent System",
-  command: "Agent System",
-  skill: "Agent System",
-  session: "Session Runtime",
-  question: "Session Runtime",
-  permission: "Session Runtime",
-  provider: "Models and Providers",
-  auth: "Models and Providers",
-  account: "Models and Providers",
-  server: "Server and API",
-  storage: "Project Storage",
-  project: "Project Storage",
-  worktree: "Project Storage",
-  git: "Project Storage",
-  snapshot: "Project Storage",
-  tool: "Developer Tools",
-  patch: "Developer Tools",
-  format: "Developer Tools",
-  lsp: "Developer Tools",
-  mcp: "Developer Tools",
-  ide: "Developer Tools",
-  cli: "Command Line Interface",
-  config: "Configuration and Installation",
-  env: "Configuration and Installation",
-  installation: "Configuration and Installation",
-  sync: "Runtime Services",
-  share: "Runtime Services",
-  "control-plane": "Runtime Services",
-  background: "Runtime Services",
-  bus: "Runtime Services",
-  effect: "Runtime Services",
-}
-
-function areaID(title: string) {
-  return title.toLowerCase().replaceAll(" ", "-")
-}
-
-function functionalityFor(file: string) {
-  const segments = file.split("/")
-  const filename = segments.at(-1) ?? file
-  if (segments[0] !== "packages") {
-    const title =
-      /^(readme|docs?\b)/i.test(filename) || segments.includes("docs")
-        ? "Project Documentation"
-        : "Project Infrastructure"
-    return { id: areaID(title), root: ".", title }
+  const source = directories.findIndex((segment) => sourceRoots.has(segment))
+  if (source >= 0 && directories[source + 1]) {
+    return [...directories.slice(0, source), directories[source + 1]].join("/")
   }
-
-  const packageName = segments[1] ?? ""
-  if (packageName === "opencode") {
-    const boundary = segments.findIndex((segment) => segment === "src" || segment === "test" || segment === "tests")
-    const domain = boundary === -1 ? "" : (segments[boundary + 1] ?? "")
-    const title = opencodeAreas[domain] ?? "OpenCode Runtime"
-    return {
-      id: areaID(title),
-      root: `packages/opencode/${boundary === -1 ? "" : segments[boundary]}`.replace(/\/$/, ""),
-      title,
-    }
-  }
-
-  const title = packageAreas[packageName] ?? "Supporting Packages"
-  return { id: areaID(title), root: `packages/${packageName}`, title }
+  if (workspaceRoots.has(directories[0]) && directories[1]) return directories.slice(0, 2).join("/")
+  return directories[0]
 }
 
-function resolveImport(source: string, target: string, files: Set<string>) {
-  if (!target.startsWith(".")) return
-  const base = normalize(path.posix.join(path.posix.dirname(source), target))
-  const candidates = [
-    base,
-    `${base}.ts`,
-    `${base}.tsx`,
-    `${base}.js`,
-    `${base}.jsx`,
-    `${base}/index.ts`,
-    `${base}/index.tsx`,
-  ]
-  return candidates.find((candidate) => files.has(candidate))
+function label(value: string) {
+  return value
+    .replace(/[-_]/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/^\w/, (letter) => letter.toUpperCase())
 }
 
-export function analyzeRepositoryGroups(
-  input: readonly (string | RepositoryFile)[],
-  referencedFiles: readonly string[] = [],
-): FunctionalGroup[] {
-  const records = input
-    .map((item) => (typeof item === "string" ? { path: item } : item))
-    .map((item) => ({ ...item, path: normalize(item.path) }))
-    .filter((item) => item.path && !item.path.split("/").some((segment) => ignoredSegments.has(segment)))
-  const unique = [...new Map(records.map((item) => [item.path, item])).values()].sort((a, b) =>
-    a.path.localeCompare(b.path),
-  )
+function areaTitle(root: string) {
+  if (root === ".") return "Project root"
+  const segments = root.split("/")
+  const area = label(segments.at(-1)!)
+  const workspace = workspaceRoots.has(segments[0]) ? segments[1] : segments.length > 1 ? segments[0] : undefined
+  return workspace && label(workspace) !== area ? `${area} · ${label(workspace)}` : area
+}
+
+export function analyzeRepositoryGroups(input: readonly string[], referencedFiles: readonly string[] = []) {
+  const files = [...new Set(input.map(normalize))]
+    .filter((file) => file && !file.split("/").some((segment) => ignoredSegments.has(segment)))
+    .sort((a, b) => a.localeCompare(b))
   const referenced = new Set(referencedFiles.map(normalize))
   const grouped = new Map<string, FunctionalGroup>()
-  const fileRecords: FileRecord[] = []
 
-  for (const item of unique) {
-    const feature = functionalityFor(item.path)
-    const group = grouped.get(feature.id) ?? {
-      ...feature,
+  for (const file of files) {
+    const root = areaRoot(file)
+    const group = grouped.get(root) ?? {
+      id: root,
+      title: areaTitle(root),
+      root,
       files: [],
       referencedFiles: [],
-      entryFiles: [],
-      relationships: [],
     }
-    group.files.push(item.path)
-    if (referenced.has(item.path)) group.referencedFiles.push(item.path)
-    if (entryNames.has(item.path.split("/").at(-1)!)) group.entryFiles.push(item.path)
-    grouped.set(feature.id, group)
-    fileRecords.push({ ...item, groupID: feature.id })
+    group.files.push(file)
+    if (referenced.has(file)) group.referencedFiles.push(file)
+    grouped.set(root, group)
   }
 
-  const fileSet = new Set(unique.map((item) => item.path))
-  const groupByFile = new Map(fileRecords.map((item) => [item.path, item.groupID]))
-  const relationships = new Map<string, GroupRelationship>()
-  for (const source of fileRecords) {
-    for (const imported of source.imports ?? []) {
-      const target = resolveImport(source.path, imported, fileSet)
-      const targetGroup = target ? groupByFile.get(target) : undefined
-      if (!targetGroup || targetGroup === source.groupID) continue
-      const key = `${source.groupID}->${targetGroup}`
-      const relationship = relationships.get(key) ?? {
-        from: source.groupID,
-        to: targetGroup,
-        kind: "imports" as const,
-        evidence: [],
-      }
-      relationship.evidence.push(`${source.path} imports ${target}`)
-      relationships.set(key, relationship)
-    }
-  }
-  for (const relationship of relationships.values()) grouped.get(relationship.from)?.relationships.push(relationship)
-
-  return [...grouped.values()].sort(
-    (a, b) => b.referencedFiles.length - a.referencedFiles.length || a.title.localeCompare(b.title),
+  const ranked = [...grouped.values()].sort(
+    (a, b) =>
+      b.referencedFiles.length - a.referencedFiles.length ||
+      b.files.length - a.files.length ||
+      a.title.localeCompare(b.title),
   )
+  if (ranked.length <= maxGroups) return ranked
+
+  const visible = ranked.slice(0, maxGroups - 1)
+  const remaining = ranked.slice(maxGroups - 1)
+  visible.push({
+    id: "other-repository-areas",
+    title: "Other repository areas",
+    root: ".",
+    files: remaining.flatMap((group) => group.files).sort((a, b) => a.localeCompare(b)),
+    referencedFiles: remaining.flatMap((group) => group.referencedFiles),
+  })
+  return visible
+}
+
+export function buildGroupNamingPrompt(groups: readonly FunctionalGroup[]) {
+  return [
+    "Give each repository area a concise, beginner-friendly functionality name.",
+    "Infer names only from the path and representative files. Return only a JSON object mapping each exact area id to a name of at most four words.",
+    ...groups.flatMap((group) => [`Area: ${group.id}`, ...group.files.slice(0, 5).map((file) => `- ${file}`)]),
+  ].join("\n")
+}
+
+export function applyGroupNames(groups: readonly FunctionalGroup[], response: string) {
+  try {
+    const start = response.indexOf("{")
+    const end = response.lastIndexOf("}")
+    const names = JSON.parse(response.slice(start, end + 1)) as Record<string, unknown>
+    return groups.map((group) => {
+      const title = names[group.id]
+      return typeof title === "string" && title.trim() ? { ...group, title: title.trim().slice(0, 50) } : group
+    })
+  } catch {
+    return [...groups]
+  }
 }
 
 export function buildFunctionalGroupPrompt(group: FunctionalGroup, groups: readonly FunctionalGroup[]) {
-  const selectedFiles = [...new Set([...group.referencedFiles, ...group.entryFiles, ...group.files])].slice(0, 12)
-  const relationships = [
-    ...group.relationships.map((item) => ({ ...item, direction: "outgoing" as const })),
-    ...groups.flatMap((item) =>
-      item.relationships
-        .filter((relationship) => relationship.to === group.id)
-        .map((relationship) => ({ ...relationship, direction: "incoming" as const })),
-    ),
-  ]
-  const related = groups
-    .filter(
-      (item) =>
-        item.id !== group.id &&
-        (relationships.some((edge) => edge.from === item.id || edge.to === item.id) ||
-          item.root.split("/").slice(0, 2).join("/") === group.root.split("/").slice(0, 2).join("/")),
-    )
-    .slice(0, 8)
-
+  const files = [...new Set([...group.referencedFiles, ...group.files])].slice(0, 15)
+  const others = groups.filter((item) => item.id !== group.id)
   return [
-    `Teach me the ${group.title} functionality in this specific repository.`,
-    `Group root: ${group.root}`,
-    `Group size: ${group.files.length} files`,
+    `Teach me what functionality the repository area ${group.title} supports.`,
+    `This area contains ${group.files.length} files. Inspect these representative files:`,
+    ...files.map((file) => `- ${file}`),
+    ...(group.files.length > files.length ? [`- (${group.files.length - files.length} additional files omitted)`] : []),
     "",
-    "Priority files to inspect:",
-    ...selectedFiles.map((file) => `- ${file}`),
-    ...(group.files.length > selectedFiles.length
-      ? [`- (${group.files.length - selectedFiles.length} additional files omitted)`]
-      : []),
+    "Files already referenced in this session:",
+    ...(group.referencedFiles.length ? group.referencedFiles.slice(0, 8).map((file) => `- ${file}`) : ["- None"]),
     "",
-    "Session-referenced evidence:",
-    ...(group.referencedFiles.length ? group.referencedFiles.slice(0, 8).map((file) => `- ${file}`) : ["- None yet"]),
+    "Other repository groups:",
+    ...others.flatMap((item) => [
+      `- ${item.title} (${item.root})`,
+      ...item.files.slice(0, 2).map((file) => `  - ${file}`),
+    ]),
     "",
-    "Evidence-backed relationships:",
-    ...(relationships.length
-      ? relationships
-          .slice(0, 8)
-          .flatMap((edge) => [
-            `- ${edge.direction}: ${edge.from} ${edge.kind} ${edge.to}`,
-            ...edge.evidence.slice(0, 2).map((evidence) => `  Evidence: ${evidence}`),
-          ])
-      : ["- No cross-group relationship has been established; do not invent one."]),
-    "",
-    "Nearby functionality groups:",
-    ...(related.length ? related.map((item) => `- ${item.title} (${item.files.length} files)`) : ["- None"]),
-    "",
-    "Read the priority files before answering and base every project-specific claim on repository evidence.",
-    "Explain this group's responsibility, its important files, and how established relationships support the current conversation.",
-    "Give a short recommended reading order and one concrete question I should be able to answer afterward.",
-    "Cite file paths for project-specific claims. Clearly label inferences, and do not generate an ASCII diagram.",
+    "Read the relevant files before answering. Infer a concise functionality name for this area, explain its responsibility and how its important files work together, then give a short reading order and one question to check my understanding.",
+    "Identify its most important relationships with the other groups. For each relationship, explain the direction and cite concrete import, call, shared-data, or configuration evidence. Do not invent a relationship when repository evidence is unavailable.",
+    "Cite file paths for repository-specific claims and clearly label inferences.",
   ].join("\n")
 }

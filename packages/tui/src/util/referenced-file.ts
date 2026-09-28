@@ -1,5 +1,3 @@
-import { groupReferencedFiles } from "./referenced-file-role"
-
 type SessionPart = {
   type: string
   tool?: string
@@ -32,20 +30,6 @@ export function collectReferencedFiles(parts: readonly SessionPart[]) {
     seen.add(normalized)
     return [normalized]
   })
-}
-
-export function collectReferencedFileOverview(parts: readonly SessionPart[]) {
-  const files = collectReferencedFiles(parts)
-  return {
-    files,
-    groups: groupReferencedFiles(files),
-  }
-}
-
-export function referencedFileCountMessage(count: number) {
-  if (count === 0) return "No referenced files in this session"
-  if (count === 1) return "Found 1 referenced file"
-  return `Found ${count} referenced files`
 }
 
 function referencedFilePath(part: SessionPart) {

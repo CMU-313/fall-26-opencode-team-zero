@@ -1,125 +1,61 @@
 import { describe, expect, test } from "bun:test"
-import { analyzeRepositoryGroups, buildFunctionalGroupPrompt } from "../../src/util/repository-functionality"
+import {
+  analyzeRepositoryGroups,
+  applyGroupNames,
+  buildFunctionalGroupPrompt,
+  buildGroupNamingPrompt,
+} from "../../src/util/repository-functionality"
 
-describe("repository functionality", () => {
-  test("groups repository files by workspace and feature", () => {
-    const groups = analyzeRepositoryGroups([
-      "packages/tui/src/routes/session/index.tsx",
-      "packages/tui/src/routes/session/dialog.tsx",
-      "packages/tui/src/util/referenced-file.ts",
-      "packages/opencode/src/session/index.ts",
-    ])
-
-    expect(groups.map((group) => [group.id, group.files.length])).toEqual([
-      ["session-runtime", 1],
-      ["terminal-user-interface", 3],
-    ])
-  })
-
-  test("attaches matching tests to the functionality they verify", () => {
-    const [group] = analyzeRepositoryGroups([
-      "packages/tui/src/util/referenced-file.ts",
-      "packages/tui/test/util/referenced-file.test.ts",
-    ])
-
-    expect(group.id).toBe("terminal-user-interface")
-    expect(group.files).toEqual([
-      "packages/tui/src/util/referenced-file.ts",
-      "packages/tui/test/util/referenced-file.test.ts",
-    ])
-  })
-
-  test("tracks referenced and entry files inside each group", () => {
-    const [group] = analyzeRepositoryGroups(
-      ["packages/opencode/src/session/index.ts", "packages/opencode/src/session/prompt.ts"],
-      ["packages/opencode/src/session/prompt.ts"],
-    )
-
-    expect(group.entryFiles).toEqual(["packages/opencode/src/session/index.ts"])
-    expect(group.referencedFiles).toEqual(["packages/opencode/src/session/prompt.ts"])
-  })
-
-  test("prioritizes functionality referenced by the current session", () => {
-    const groups = analyzeRepositoryGroups(
-      ["packages/tui/src/index.ts", "packages/opencode/src/session/index.ts"],
-      ["packages/tui/src/index.ts"],
-    )
-
-    expect(groups.map((group) => group.id)).toEqual(["terminal-user-interface", "session-runtime"])
-  })
-
-  test("matches tests to source files inside the same workspace", () => {
+describe("repository areas", () => {
+  test("groups common repository layouts without project-specific names", () => {
     const groups = analyzeRepositoryGroups([
       "packages/api/src/auth/token.ts",
-      "packages/web/src/session/token.ts",
-      "packages/web/test/session/token.test.ts",
+      "packages/api/test/auth/token.test.ts",
+      "apps/web/src/pages/home.tsx",
+      "lib/parser/index.py",
+      "spec/parser/index_spec.py",
     ])
 
-    expect(groups.find((group) => group.id === "web-application")?.files).toEqual([
-      "packages/web/src/session/token.ts",
-      "packages/web/test/session/token.test.ts",
-    ])
+    expect(groups.map((group) => group.id)).toEqual(["packages/api/auth", "parser", "apps/web/pages"])
+    expect(groups.find((group) => group.id === "packages/api/auth")?.files).toHaveLength(2)
+    expect(groups.find((group) => group.id === "packages/api/auth")?.title).toBe("Auth · Api")
+    expect(groups.find((group) => group.id === "parser")?.files).toHaveLength(2)
   })
 
-  test("creates relationships only from concrete import evidence", () => {
-    const groups = analyzeRepositoryGroups([
-      { path: "packages/app/src/index.tsx", imports: ["../../tui/src/util/referenced-file"] },
-      "packages/tui/src/util/referenced-file.ts",
-      "packages/tui/src/component/dialog.tsx",
-    ])
-    const app = groups.find((group) => group.id === "shared-user-interface")!
+  test("prioritizes areas referenced in the current session", () => {
+    const groups = analyzeRepositoryGroups(["src/auth/login.ts", "src/editor/open.ts"], ["src/editor/open.ts"])
 
-    expect(app.relationships).toEqual([
-      {
-        from: "shared-user-interface",
-        to: "terminal-user-interface",
-        kind: "imports",
-        evidence: ["packages/app/src/index.tsx imports packages/tui/src/util/referenced-file.ts"],
-      },
-    ])
+    expect(groups.map((group) => group.id)).toEqual(["editor", "auth"])
+    expect(groups[0].referencedFiles).toEqual(["src/editor/open.ts"])
   })
 
-  test("normalizes duplicates and excludes generated directories", () => {
-    const groups = analyzeRepositoryGroups([
-      "./packages/tui/src/index.ts",
-      "packages\\tui\\src\\index.ts",
-      "packages/tui/node_modules/library/index.ts",
-      "packages/tui/dist/index.js",
-    ])
-
-    expect(groups).toHaveLength(1)
-    expect(groups[0].files).toEqual(["packages/tui/src/index.ts"])
-  })
-
-  test("builds a bounded evidence-based learning prompt", () => {
-    const groups = analyzeRepositoryGroups(
-      [
-        {
-          path: "packages/app/src/index.tsx",
-          imports: ["../../tui/src/util/referenced-file"],
-        },
-        "packages/tui/src/util/referenced-file.ts",
-        ...Array.from({ length: 14 }, (_, index) => `packages/app/src/view-${index}.tsx`),
-      ],
-      ["packages/app/src/index.tsx"],
+  test("builds a bounded evidence-based explanation prompt", () => {
+    const [group] = analyzeRepositoryGroups(
+      Array.from({ length: 20 }, (_, index) => `src/session/file-${index}.ts`),
+      ["src/session/file-19.ts"],
     )
-    const group = groups.find((item) => item.id === "shared-user-interface")!
-    const prompt = buildFunctionalGroupPrompt(group, groups)
+    const related = analyzeRepositoryGroups(["src/auth/login.ts"])[0]
+    const prompt = buildFunctionalGroupPrompt(group, [group, related])
 
-    expect(prompt).toContain("Teach me the Shared User Interface functionality")
-    expect(prompt).toContain("Session-referenced evidence:\n- packages/app/src/index.tsx")
-    expect(prompt).toContain("shared-user-interface imports terminal-user-interface")
-    expect(prompt).toContain("Evidence: packages/app/src/index.tsx imports")
+    expect(prompt).toContain("Infer a concise functionality name")
+    expect(prompt).toContain("src/session/file-19.ts")
     expect(prompt).toContain("additional files omitted")
-    expect(prompt).toContain("recommended reading order")
-    expect(prompt).toContain("do not generate an ASCII diagram")
-    expect(prompt).not.toContain("view-9.tsx")
+    expect(prompt).toContain("Other repository groups:")
+    expect(prompt).toContain("Auth (auth)")
+    expect(prompt).toContain("Do not invent a relationship")
+    expect(prompt).not.toContain("src/session/file-8.ts")
   })
 
-  test("does not invent relationships when no evidence exists", () => {
-    const [group] = analyzeRepositoryGroups(["packages/tui/src/session/index.ts"])
-    const prompt = buildFunctionalGroupPrompt(group, [group])
+  test("limits the map and applies model-generated names", () => {
+    const groups = analyzeRepositoryGroups(
+      Array.from({ length: 35 }, (_, index) => `src/area-${index}/index.ts`),
+      ["src/area-34/index.ts"],
+    )
+    const renamed = applyGroupNames(groups, '{"area-34":"Session History"}')
 
-    expect(prompt).toContain("No cross-group relationship has been established; do not invent one.")
+    expect(groups).toHaveLength(30)
+    expect(groups[0].id).toBe("area-34")
+    expect(renamed[0].title).toBe("Session History")
+    expect(buildGroupNamingPrompt(groups)).toContain("Area: area-34")
   })
 })

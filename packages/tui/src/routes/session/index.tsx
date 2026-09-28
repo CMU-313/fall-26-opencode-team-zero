@@ -83,14 +83,12 @@ import { getRevertDiffFiles } from "../../util/revert-diff"
 import { OPENCODE_BASE_MODE, useBindings, useCommandShortcut, useOpencodeKeymap } from "../../keymap"
 import { usePathFormatter } from "../../context/path-format"
 import { LocationProvider } from "../../context/location"
-import {
-  collectReferencedFileOverview,
-  referencedFileCommand,
-  referencedFileCountMessage,
-} from "../../util/referenced-file"
+import { collectReferencedFiles, referencedFileCommand } from "../../util/referenced-file"
 import {
   analyzeRepositoryGroups,
+  applyGroupNames,
   buildFunctionalGroupPrompt,
+  buildGroupNamingPrompt,
   type FunctionalGroup,
 } from "../../util/repository-functionality"
 
@@ -478,7 +476,7 @@ export function Session() {
     {
       ...referencedFileCommand,
       run: async () => {
-        const overview = collectReferencedFileOverview(
+        const referencedFiles = collectReferencedFiles(
           messages().flatMap((message) => sync.data.part[message.id] ?? []),
         )
         dialog.replace(() => <DialogRepositoryMapLoading />)
@@ -493,11 +491,30 @@ export function Session() {
           dialog.clear()
           return
         }
-        const groups = analyzeRepositoryGroups(result.data ?? [], overview.files)
+        let groups = analyzeRepositoryGroups(result.data ?? [], referencedFiles)
         if (groups.length === 0) {
-          toast.show({ message: referencedFileCountMessage(overview.files.length), variant: "info" })
+          toast.show({ message: "No repository files found", variant: "info" })
           dialog.clear()
           return
+        }
+        const namingSession = await sdk.client.session.create({ workspace: project.workspace.current() })
+        if (namingSession.data) {
+          try {
+            const naming = await sdk.client.session.prompt({
+              sessionID: namingSession.data.id,
+              workspace: project.workspace.current(),
+              parts: [{ type: "text", text: buildGroupNamingPrompt(groups) }],
+            })
+            const text = naming.data?.parts
+              .filter((part) => part.type === "text")
+              .map((part) => part.text)
+              .join("\n")
+            if (text) groups = applyGroupNames(groups, text)
+          } catch {
+            // Structural names remain available when model naming fails.
+          } finally {
+            await sdk.client.session.delete({ sessionID: namingSession.data.id }).catch(() => undefined)
+          }
         }
         const explain = (group: FunctionalGroup) => {
           dialog.clear()
