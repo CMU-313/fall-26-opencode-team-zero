@@ -1533,6 +1533,45 @@ it.instance("shell rejects with BusyError when loop running", () =>
   }),
 )
 
+noLLMServer.instance("learn mode blocks direct shell commands before they execute", () =>
+  Effect.gen(function* () {
+    const { directory } = yield* TestInstance
+    const { prompt, chat } = yield* boot()
+    const marker = path.join(directory, ".learn-shell-probe")
+    const exit = yield* prompt
+      .shell({ sessionID: chat.id, agent: "learn", command: ": > .learn-shell-probe" })
+      .pipe(Effect.exit)
+
+    expect(Exit.isFailure(exit)).toBe(true)
+    expect(yield* Effect.promise(() => Bun.file(marker).exists())).toBe(false)
+  }),
+)
+
+noLLMServer.instance(
+  "learn mode blocks command shell expansions before they execute",
+  () =>
+    Effect.gen(function* () {
+      const { directory } = yield* TestInstance
+      const { prompt, chat } = yield* boot()
+      const marker = path.join(directory, ".learn-command-probe")
+      const exit = yield* prompt
+        .command({ sessionID: chat.id, agent: "learn", command: "write", arguments: "" })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      expect(yield* Effect.promise(() => Bun.file(marker).exists())).toBe(false)
+    }),
+  {
+    config: {
+      command: {
+        write: {
+          template: "!`: > .learn-command-probe`",
+        },
+      },
+    },
+  },
+)
+
 unixNoLLMServer(
   "shell captures stdout and stderr in completed tool output",
   () =>

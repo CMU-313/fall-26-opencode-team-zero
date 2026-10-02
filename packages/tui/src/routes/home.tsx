@@ -16,7 +16,19 @@ import { HomeSessionDestinationProvider } from "./home/session-destination"
 let once = false
 const placeholder = {
   normal: ["Fix a TODO in the codebase", "What is the tech stack of this project?", "Fix broken tests"],
+  learn: [
+    "Tell me about Copilot integration...",
+    "Explain how this codebase is organized",
+    "Where should I start reading this project?",
+  ],
   shell: ["ls -la", "git status", "pwd"],
+}
+
+export function homePromptPlaceholders(agent?: string) {
+  return {
+    normal: agent === "learn" ? placeholder.learn : placeholder.normal,
+    shell: placeholder.shell,
+  }
 }
 
 export function Home() {
@@ -80,7 +92,11 @@ export function Home() {
         <box height={1} minHeight={0} flexShrink={1} />
         <box width="100%" maxWidth={promptMaxWidth()} zIndex={1000} paddingTop={1} flexShrink={0}>
           <pluginRuntime.Slot name="home_prompt" mode="replace" ref={bind}>
-            <Prompt ref={bind} right={<pluginRuntime.Slot name="home_prompt_right" />} placeholders={placeholder} />
+            <Prompt
+              ref={bind}
+              right={<pluginRuntime.Slot name="home_prompt_right" />}
+              placeholders={homePromptPlaceholders(local.agent.current()?.name)}
+            />
           </pluginRuntime.Slot>
         </box>
         <pluginRuntime.Slot name="home_bottom" />
