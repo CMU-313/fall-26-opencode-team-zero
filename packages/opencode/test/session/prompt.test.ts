@@ -1875,6 +1875,67 @@ it.instance("associate command expands the source file argument", () =>
   }),
 )
 
+it.instance("associate command accepts one quoted source file argument", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(providerCfg)
+    const { prompt, chat } = yield* boot()
+    yield* llm.text("done")
+
+    const result = yield* prompt.command({
+      sessionID: chat.id,
+      command: "associate",
+      arguments: '"src/session/prompt with spaces.ts"',
+    })
+
+    expect(result.info.role).toBe("assistant")
+    const inputs = yield* llm.inputs
+    expect(JSON.stringify(inputs.at(-1)?.messages)).toContain('Input file: \\"src/session/prompt with spaces.ts\\"')
+  }),
+)
+
+it.instance("associate command accepts no source file argument", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(providerCfg)
+    const { prompt, chat } = yield* boot()
+    yield* llm.text("done")
+
+    const result = yield* prompt.command({
+      sessionID: chat.id,
+      command: "associate",
+      arguments: "",
+    })
+
+    expect(result.info.role).toBe("assistant")
+    const inputs = yield* llm.inputs
+    expect(JSON.stringify(inputs.at(-1)?.messages)).toContain("If no file was provided, ask the user for one and stop.")
+  }),
+)
+
+it.instance("associate command rejects multiple source file arguments", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(providerCfg)
+    const { prompt, chat } = yield* boot()
+
+    const exit = yield* prompt
+      .command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: "src/foo.ts src/bar.ts",
+      })
+      .pipe(Effect.exit)
+
+    expect(Exit.isFailure(exit)).toBe(true)
+    if (Exit.isFailure(exit)) {
+      const err = Cause.squash(exit.cause)
+      expect(NamedError.Unknown.isInstance(err)).toBe(true)
+      if (NamedError.Unknown.isInstance(err)) {
+        expect(err.data.message).toBe('Command "/associate" accepts at most 1 argument.')
+      }
+    }
+    expect(yield* llm.calls).toBe(0)
+  }),
+)
+
 unixNoLLMServer(
   "cancel interrupts shell and resolves cleanly",
   () =>

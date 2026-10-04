@@ -1382,6 +1382,13 @@ const layer = Layer.effect(
 
       const raw = input.arguments.match(argsRegex) ?? []
       const args = raw.map((arg) => arg.replace(quoteTrimRegex, ""))
+      if (cmd.maxArguments !== undefined && args.length > cmd.maxArguments) {
+        const error = new NamedError.Unknown({
+          message: `Command "/${cmd.name}" accepts at most ${cmd.maxArguments} argument${cmd.maxArguments === 1 ? "" : "s"}.`,
+        })
+        yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
+        throw error
+      }
       const templateCommand = yield* Effect.promise(async () => cmd.template)
 
       const placeholders = templateCommand.match(placeholderRegex) ?? []

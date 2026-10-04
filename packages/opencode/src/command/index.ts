@@ -29,6 +29,7 @@ export const Info = Schema.Struct({
   // Some command templates are lazy promises from MCP prompt resolution.
   template: Schema.Unknown,
   subtask: Schema.optional(Schema.Boolean),
+  maxArguments: Schema.optional(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
   hints: Schema.Array(Schema.String),
 }).annotate({ identifier: "Command" })
 
@@ -93,6 +94,7 @@ const layer = Layer.effect(
         description: "associate functions in a file with their tests",
         source: "command",
         template: PROMPT_ASSOCIATE,
+        maxArguments: 1,
         hints: hints(PROMPT_ASSOCIATE),
       }
 
