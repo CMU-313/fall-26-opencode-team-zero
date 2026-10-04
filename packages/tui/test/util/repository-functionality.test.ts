@@ -61,4 +61,74 @@ describe("repository areas", () => {
     expect(renamed[0].title).toBe("Session History")
     expect(buildGroupNamingPrompt(groups)).toContain("Group: packages/area-34")
   })
+
+  test("handles empty repositories and ignores generated-only inventories", () => {
+    expect(analyzeRepositoryGroups([])).toEqual([])
+    expect(analyzeRepositoryGroups(["node_modules/pkg/index.js", "dist/app.js", ".git/config"])).toEqual([])
+  })
+
+  test("keeps root files and unfamiliar layouts without losing paths", () => {
+    const files = [
+      "README.md",
+      "mystery/component.custom",
+      "services/api/lib/start.ts",
+      "modules/parser/spec/check.txt",
+    ]
+    const groups = analyzeRepositoryGroups(files)
+
+    expect(groups.flatMap((group) => group.files).sort()).toEqual([...files].sort())
+    expect(groups.find((group) => group.id === ".")?.files).toEqual(["README.md"])
+    expect(groups.map((group) => group.id)).toEqual(
+      expect.arrayContaining(["mystery", "services/api", "modules/parser"]),
+    )
+  })
+
+  test.each([20, 21, 25])("preserves every file and reference with %i subgroups", (count) => {
+    const files = Array.from({ length: count }, (_, index) => `packages/api/src/feature-${index}/index.ts`)
+    const [group] = analyzeRepositoryGroups(files, files)
+
+    expect(group.subgroups).toHaveLength(Math.min(count, 20))
+    expect(group.subgroups.flatMap((subgroup) => subgroup.files).sort()).toEqual([...files].sort())
+    expect(group.subgroups.flatMap((subgroup) => subgroup.referencedFiles).sort()).toEqual([...files].sort())
+    if (count > 20) {
+      expect(group.subgroups.at(-1)?.title).toBe("Other areas")
+      expect(group.subgroups.at(-1)?.files).toHaveLength(count - 19)
+    }
+  })
+
+  test.each([30, 31, 35])("preserves every file and reference with %i groups", (count) => {
+    const files = Array.from({ length: count }, (_, index) => `packages/area-${index}/src/index.ts`)
+    const groups = analyzeRepositoryGroups(files, files)
+
+    expect(groups).toHaveLength(Math.min(count, 30))
+    expect(groups.flatMap((group) => group.files).sort()).toEqual([...files].sort())
+    expect(groups.flatMap((group) => group.referencedFiles).sort()).toEqual([...files].sort())
+    expect(groups.flatMap((group) => group.subgroups.flatMap((subgroup) => subgroup.files)).sort()).toEqual(
+      [...files].sort(),
+    )
+    if (count > 30) {
+      expect(groups.at(-1)?.title).toBe("Other repository groups")
+      expect(groups.at(-1)?.files).toHaveLength(count - 29)
+    }
+  })
+
+  test.each(["", "No names available", '{"src":', '{"src": "Source",}'])(
+    "retains structural names for malformed naming response %j",
+    (response) => {
+      const groups = analyzeRepositoryGroups(["src/main.ts", "docs/guide.md"])
+      expect(applyGroupNames(groups, response)).toEqual(groups)
+    },
+  )
+
+  test("retains names for missing and non-string values without changing the original map", () => {
+    const groups = analyzeRepositoryGroups(["src/main.ts", "docs/guide.md", "tests/main.test.ts"])
+    const original = structuredClone(groups)
+    const renamed = applyGroupNames(groups, '{"src": "Application", "docs": 42, "unrelated": "Unused"}')
+
+    expect(renamed.find((group) => group.id === "src")?.title).toBe("Application")
+    expect(renamed.find((group) => group.id === "docs")).toEqual(groups.find((group) => group.id === "docs"))
+    expect(renamed.find((group) => group.id === "tests")).toEqual(groups.find((group) => group.id === "tests"))
+    expect(renamed).toHaveLength(groups.length)
+    expect(groups).toEqual(original)
+  })
 })
