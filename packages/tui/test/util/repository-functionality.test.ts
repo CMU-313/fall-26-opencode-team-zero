@@ -83,7 +83,7 @@ describe("repository areas", () => {
     )
   })
 
-  test.each([20, 21, 25])("preserves every file and reference with %i subgroups", (count) => {
+  test.each([19, 20, 21, 25])("boundary-value analysis: preserves files with %i subgroups", (count) => {
     const files = Array.from({ length: count }, (_, index) => `packages/api/src/feature-${index}/index.ts`)
     const [group] = analyzeRepositoryGroups(files, files)
 
@@ -96,7 +96,7 @@ describe("repository areas", () => {
     }
   })
 
-  test.each([30, 31, 35])("preserves every file and reference with %i groups", (count) => {
+  test.each([29, 30, 31, 35])("boundary-value analysis: preserves files with %i groups", (count) => {
     const files = Array.from({ length: count }, (_, index) => `packages/area-${index}/src/index.ts`)
     const groups = analyzeRepositoryGroups(files, files)
 
@@ -119,6 +119,48 @@ describe("repository areas", () => {
       expect(applyGroupNames(groups, response)).toEqual(groups)
     },
   )
+
+  test("metamorphic testing: duplicate and reordered path formats preserve the map", () => {
+    const files = ["packages/api/src/login.ts", "packages/api/test/login.test.ts", "apps/web/src/home.tsx"]
+    const expected = analyzeRepositoryGroups(files, ["apps/web/src/home.tsx"])
+    const changed = analyzeRepositoryGroups(
+      ["./apps/web/src/home.tsx", "packages\\api\\test\\login.test.ts", ...files.toReversed(), files[0]],
+      ["apps\\web\\src\\home.tsx"],
+    )
+
+    expect(changed).toEqual(expected)
+  })
+
+  test("generated-input property: every accepted file belongs to one group and subgroup", () => {
+    for (const count of [1, 2, 17, 18, 19, 30, 31, 75]) {
+      const files = Array.from({ length: count }, (_, index) =>
+        index % 2 ? `apps/web/test/case-${index}.test.ts` : `packages/api/src/feature-${index}/index.ts`,
+      )
+      const groups = analyzeRepositoryGroups(
+        files.flatMap((file, index) => (index % 2 ? [file, file] : [`./${file}`, file])),
+        [files[0], files.at(-1)!],
+      )
+      const references = [...new Set([files[0], files.at(-1)!])].sort()
+
+      expect(groups.flatMap((group) => group.files).sort()).toEqual([...files].sort())
+      expect(groups.flatMap((group) => group.subgroups.flatMap((subgroup) => subgroup.files)).sort()).toEqual(
+        [...files].sort(),
+      )
+      expect(groups.flatMap((group) => group.referencedFiles).sort()).toEqual(references)
+    }
+  })
+
+  test("pairwise testing: a late referenced file survives prompt length limits", () => {
+    const files = Array.from({ length: 35 }, (_, index) => `src/session/file-${index}.ts`)
+    const referenced = files.at(-1)!
+    const [group] = analyzeRepositoryGroups(files, [referenced])
+    const prompt = buildFunctionalGroupPrompt(group, [group])
+    const listed = prompt.split("Representative files:\n")[1].split("\n- (", 1)[0].split("\n")
+
+    expect(listed).toHaveLength(15)
+    expect(listed[0]).toBe(`- ${referenced}`)
+    expect(prompt).toContain(`(${files.length - 15} additional files omitted)`)
+  })
 
   test("retains names for missing and non-string values without changing the original map", () => {
     const groups = analyzeRepositoryGroups(["src/main.ts", "docs/guide.md", "tests/main.test.ts"])
