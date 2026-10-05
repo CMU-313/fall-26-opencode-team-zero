@@ -1855,42 +1855,52 @@ unix(
   30_000,
 )
 
-it.instance("associate command expands the source file argument", () =>
-  Effect.gen(function* () {
-    const { llm } = yield* useServerConfig(providerCfg)
-    const { prompt, chat } = yield* boot()
-    yield* llm.text("done")
+it.instance(
+  "associate command expands the source file argument",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      yield* writeText(path.join(dir, "src/session/prompt.ts"), "export function prompt() {}")
+      const { prompt, chat } = yield* boot()
+      yield* llm.text("done")
 
-    const result = yield* prompt.command({
-      sessionID: chat.id,
-      command: "associate",
-      arguments: "src/session/prompt.ts",
-    })
+      const result = yield* prompt.command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: "src/session/prompt.ts",
+      })
 
-    expect(result.info.role).toBe("assistant")
-    const inputs = yield* llm.inputs
-    const messages = JSON.stringify(inputs.at(-1)?.messages)
-    expect(messages).toContain("Associate every function in the provided source file")
-    expect(messages).toContain("Input file: src/session/prompt.ts")
-  }),
+      expect(result.info.role).toBe("assistant")
+      const inputs = yield* llm.inputs
+      const messages = JSON.stringify(inputs.at(-1)?.messages)
+      expect(messages).toContain("Associate every function in the provided source file")
+      expect(messages).toContain("Input file: src/session/prompt.ts")
+      expect(yield* llm.calls).toBe(1)
+    }),
+  { git: true },
 )
 
-it.instance("associate command accepts one quoted source file argument", () =>
-  Effect.gen(function* () {
-    const { llm } = yield* useServerConfig(providerCfg)
-    const { prompt, chat } = yield* boot()
-    yield* llm.text("done")
+it.instance(
+  "associate command accepts one quoted source file argument",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      yield* writeText(path.join(dir, "src/session/prompt with spaces.ts"), "export function prompt() {}")
+      const { prompt, chat } = yield* boot()
+      yield* llm.text("done")
 
-    const result = yield* prompt.command({
-      sessionID: chat.id,
-      command: "associate",
-      arguments: '"src/session/prompt with spaces.ts"',
-    })
+      const result = yield* prompt.command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: '"src/session/prompt with spaces.ts"',
+      })
 
-    expect(result.info.role).toBe("assistant")
-    const inputs = yield* llm.inputs
-    expect(JSON.stringify(inputs.at(-1)?.messages)).toContain('Input file: \\"src/session/prompt with spaces.ts\\"')
-  }),
+      expect(result.info.role).toBe("assistant")
+      const inputs = yield* llm.inputs
+      expect(JSON.stringify(inputs.at(-1)?.messages)).toContain('Input file: \\"src/session/prompt with spaces.ts\\"')
+      expect(yield* llm.calls).toBe(1)
+    }),
+  { git: true },
 )
 
 it.instance("associate command accepts no source file argument", () =>
@@ -1934,6 +1944,145 @@ it.instance("associate command rejects multiple source file arguments", () =>
     }
     expect(yield* llm.calls).toBe(0)
   }),
+)
+
+it.instance(
+  "associate command rejects a source file that does not exist",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const { prompt, chat } = yield* boot()
+
+      const exit = yield* prompt
+        .command({
+          sessionID: chat.id,
+          command: "associate",
+          arguments: "src/missing.ts",
+        })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        const err = Cause.squash(exit.cause)
+        expect(NamedError.Unknown.isInstance(err)).toBe(true)
+        if (NamedError.Unknown.isInstance(err)) {
+          expect(err.data.message).toBe('File not found: "src/missing.ts".')
+        }
+      }
+      expect(yield* llm.calls).toBe(0)
+    }),
+  { git: true },
+)
+
+it.instance(
+  "associate command accepts an absolute source file path inside the project",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      const file = path.join(dir, "src/session/prompt.ts")
+      yield* writeText(file, "export function prompt() {}")
+      const { prompt, chat } = yield* boot()
+      yield* llm.text("done")
+
+      const result = yield* prompt.command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: file,
+      })
+
+      expect(result.info.role).toBe("assistant")
+      expect(JSON.stringify((yield* llm.inputs).at(-1)?.messages)).toContain(`Input file: ${file}`)
+      expect(yield* llm.calls).toBe(1)
+    }),
+  { git: true },
+)
+
+it.instance(
+  "associate command rejects paths outside the project",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const { prompt, chat } = yield* boot()
+
+      const exit = yield* prompt
+        .command({
+          sessionID: chat.id,
+          command: "associate",
+          arguments: "../outside.ts",
+        })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        const err = Cause.squash(exit.cause)
+        expect(NamedError.Unknown.isInstance(err)).toBe(true)
+        if (NamedError.Unknown.isInstance(err)) {
+          expect(err.data.message).toBe('File must be inside the project: "../outside.ts".')
+        }
+      }
+      expect(yield* llm.calls).toBe(0)
+    }),
+  { git: true },
+)
+
+it.instance(
+  "associate command rejects directories",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const { prompt, chat } = yield* boot()
+
+      const exit = yield* prompt
+        .command({
+          sessionID: chat.id,
+          command: "associate",
+          arguments: ".",
+        })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        const err = Cause.squash(exit.cause)
+        expect(NamedError.Unknown.isInstance(err)).toBe(true)
+        if (NamedError.Unknown.isInstance(err)) {
+          expect(err.data.message).toBe('File not found: ".".')
+        }
+      }
+      expect(yield* llm.calls).toBe(0)
+    }),
+  { git: true },
+)
+
+unix(
+  "associate command rejects an unreadable source file",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      const fs = yield* FSUtil.Service
+      const file = path.join(dir, "src/session/prompt.ts")
+      yield* writeText(file, "export function prompt() {}")
+      yield* fs.chmod(file, 0)
+      const { prompt, chat } = yield* boot()
+
+      const exit = yield* prompt
+        .command({
+          sessionID: chat.id,
+          command: "associate",
+          arguments: "src/session/prompt.ts",
+        })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        const err = Cause.squash(exit.cause)
+        expect(NamedError.Unknown.isInstance(err)).toBe(true)
+        if (NamedError.Unknown.isInstance(err)) {
+          expect(err.data.message).toBe('File is not readable: "src/session/prompt.ts".')
+        }
+      }
+      expect(yield* llm.calls).toBe(0)
+    }),
+  { git: true },
 )
 
 unixNoLLMServer(
