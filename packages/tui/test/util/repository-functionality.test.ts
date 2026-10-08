@@ -72,6 +72,20 @@ describe("repository areas", () => {
     expect(buildGroupNamingPrompt(groups)).toContain("Group: packages/area-34")
   })
 
+  test("caps subgroups in the overflow group without losing files", () => {
+    const files = Array.from({ length: 55 }, (_, index) => `packages/area-${index}/src/index.ts`)
+    const groups = analyzeRepositoryGroups(files, files)
+    const overflow = groups.at(-1)!
+
+    expect(groups).toHaveLength(30)
+    expect(overflow.title).toBe("Other repository groups")
+    expect(overflow.subgroups).toHaveLength(20)
+    expect(overflow.subgroups.flatMap((subgroup) => subgroup.files).sort()).toEqual([...overflow.files].sort())
+    expect(overflow.subgroups.flatMap((subgroup) => subgroup.referencedFiles).sort()).toEqual(
+      [...overflow.referencedFiles].sort(),
+    )
+  })
+
   test("handles empty repositories and ignores generated-only inventories", () => {
     expect(analyzeRepositoryGroups([])).toEqual([])
     expect(analyzeRepositoryGroups(["node_modules/pkg/index.js", "dist/app.js", ".git/config"])).toEqual([])
