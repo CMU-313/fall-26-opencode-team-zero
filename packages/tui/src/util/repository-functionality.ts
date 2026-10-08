@@ -107,7 +107,13 @@ export function analyzeRepositoryGroups(input: readonly string[], referencedFile
     root: ".",
     files: rest.flatMap((item) => item.files),
     referencedFiles: rest.flatMap((item) => item.referencedFiles),
-    subgroups: rest.flatMap((item) => item.subgroups),
+    subgroups: limit(rest.flatMap((item) => item.subgroups), 20, (subgroups) => ({
+      id: "other-repository-groups/other",
+      title: "Other areas",
+      root: ".",
+      files: subgroups.flatMap((item) => item.files),
+      referencedFiles: subgroups.flatMap((item) => item.referencedFiles),
+    })),
   }))
 }
 
