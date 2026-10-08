@@ -2446,7 +2446,14 @@ const pendingNewcomer = Effect.fn("test.pendingNewcomer")(function* (arguments_:
     "newcomer questions did not appear",
     "20 seconds",
   )
-  return { command, questions, request, session, sessions }
+  return {
+    command,
+    dismiss: questions.reject(request.id).pipe(Effect.andThen(Fiber.await(command))),
+    questions,
+    request,
+    session,
+    sessions,
+  }
 })
 
 noLLMServer.instance(
@@ -2456,8 +2463,7 @@ noLLMServer.instance(
       const test = yield* pendingNewcomer("")
       expect(test.request.questions.map((item) => item.header)).toEqual(["Experience", "Scope"])
       expect(test.request.questions.every((item) => item.multiple === false)).toBe(true)
-      yield* test.questions.reject(test.request.id)
-      yield* Fiber.await(test.command)
+      yield* test.dismiss
     }),
 )
 
@@ -2466,8 +2472,7 @@ noLLMServer.instance(
     Effect.gen(function* () {
       const test = yield* pendingNewcomer(level)
       expect(test.request.questions.map((item) => item.header)).toEqual(["Scope"])
-      yield* test.questions.reject(test.request.id)
-      yield* Fiber.await(test.command)
+      yield* test.dismiss
     }),
   ),
 )
@@ -2477,8 +2482,7 @@ noLLMServer.instance(
     Effect.gen(function* () {
       const test = yield* pendingNewcomer(level)
       expect(test.request.questions.map((item) => item.header)).toEqual(["Experience", "Scope"])
-      yield* test.questions.reject(test.request.id)
-      yield* Fiber.await(test.command)
+      yield* test.dismiss
     }),
   ),
 )
@@ -2488,8 +2492,7 @@ newcomerScopes.forEach((scope) =>
     Effect.gen(function* () {
       const test = yield* pendingNewcomer("beginner")
       expect(test.request.questions[0]?.options.map((item) => item.label)).toContain(scope)
-      yield* test.questions.reject(test.request.id)
-      yield* Fiber.await(test.command)
+      yield* test.dismiss
     }),
   ),
 )
@@ -2498,16 +2501,14 @@ noLLMServer.instance("newcomer scope accepts custom input", () =>
   Effect.gen(function* () {
     const test = yield* pendingNewcomer("beginner")
     expect(test.request.questions[0]?.custom).toBe(true)
-    yield* test.questions.reject(test.request.id)
-    yield* Fiber.await(test.command)
+    yield* test.dismiss
   }),
 )
 
 noLLMServer.instance("newcomer cancellation clears the pending request", () =>
   Effect.gen(function* () {
     const test = yield* pendingNewcomer("")
-    yield* test.questions.reject(test.request.id)
-    const exit = yield* Fiber.await(test.command)
+    const exit = yield* test.dismiss
     expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(true)
     expect(yield* test.questions.list()).toEqual([])
   }),
@@ -2556,8 +2557,7 @@ newcomerScopes.forEach((scope) =>
 noLLMServer.instance("newcomer integration does not persist a dismissed prompt", () =>
   Effect.gen(function* () {
     const test = yield* pendingNewcomer("")
-    yield* test.questions.reject(test.request.id)
-    yield* Fiber.await(test.command)
+    yield* test.dismiss
     expect(yield* test.sessions.messages({ sessionID: test.session.id })).toEqual([])
   }),
 )
@@ -2567,8 +2567,7 @@ noLLMServer.instance("newcomer integration isolates concurrent sessions", () =>
     const first = yield* pendingNewcomer("beginner")
     const second = yield* pendingNewcomer("advanced")
     expect(first.request.sessionID).not.toBe(second.request.sessionID)
-    yield* Effect.all([first.questions.reject(first.request.id), second.questions.reject(second.request.id)])
-    yield* Effect.all([Fiber.await(first.command), Fiber.await(second.command)])
+    yield* Effect.all([first.dismiss, second.dismiss])
   }),
 )
 
