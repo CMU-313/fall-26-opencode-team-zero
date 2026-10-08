@@ -167,6 +167,24 @@ describe("tool.registry", () => {
     }),
   )
 
+  it.instance("limits read-only prompts to built-in read-only tools", () =>
+    Effect.gen(function* () {
+      const registry = yield* ToolRegistry.Service
+      const agents = yield* Agent.Service
+      const learn = yield* agents.get("learn")
+      if (!learn) throw new Error("learn agent not found")
+
+      const tools = yield* registry.tools({
+        providerID: ProviderV2.ID.opencode,
+        modelID: ModelV2.ID.make("test"),
+        agent: learn,
+        readOnly: true,
+      })
+
+      expect(tools.map((tool) => tool.id)).toEqual(["read", "glob", "grep", "webfetch", "websearch"])
+    }),
+  )
+
   it.instance("loads tools from .opencode/tool (singular)", () =>
     Effect.gen(function* () {
       const test = yield* TestInstance

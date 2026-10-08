@@ -94,6 +94,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     providerID: input.model.providerID,
     agent: input.agent,
     permission: input.session.permission,
+    readOnly: input.agent.name === "learn",
   })) {
     const schema = ProviderTransform.schema(input.model, ToolJsonSchema.fromTool(item))
     tools[item.id] = tool({
@@ -132,6 +133,8 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
       },
     })
   }
+
+  if (input.agent.name === "learn") return tools
 
   const hasMcpResourceServer = Object.values(yield* mcp.clients()).some(
     (client) => !!client.getServerCapabilities()?.resources,
