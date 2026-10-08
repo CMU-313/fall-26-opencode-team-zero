@@ -478,6 +478,7 @@ export function Session() {
       run: async () => {
         const referencedFiles = collectReferencedFiles(
           messages().flatMap((message) => sync.data.part[message.id] ?? []),
+          project.instance.directory(),
         )
         dialog.replace(() => <DialogRepositoryMapLoading />)
         const result = await sdk.client.find.files({

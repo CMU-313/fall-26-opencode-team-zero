@@ -52,6 +52,23 @@ describe("referenced files", () => {
     ).toEqual([])
   })
 
+  test("matches absolute read paths to relative repository files", () => {
+    expect(
+      collectReferencedFiles(
+        [
+          completedRead("/home/student/project/src/index.ts"),
+          completedRead("src/index.ts"),
+          completedRead("/home/student/project-copy/src/other.ts"),
+        ],
+        "/home/student/project",
+      ),
+    ).toEqual(["src/index.ts", "/home/student/project-copy/src/other.ts"])
+
+    expect(
+      collectReferencedFiles([completedRead("C:\\repo\\src\\index.ts")], "C:\\repo"),
+    ).toEqual(["src/index.ts"])
+  })
+
   test("registers /group", () => {
     expect(referencedFileCommand.slash.name).toBe("group")
   })
