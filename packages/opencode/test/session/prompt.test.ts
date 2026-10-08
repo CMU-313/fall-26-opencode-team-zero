@@ -1533,6 +1533,45 @@ it.instance("shell rejects with BusyError when loop running", () =>
   }),
 )
 
+noLLMServer.instance("learn mode blocks direct shell commands before they execute", () =>
+  Effect.gen(function* () {
+    const { directory } = yield* TestInstance
+    const { prompt, chat } = yield* boot()
+    const marker = path.join(directory, ".learn-shell-probe")
+    const exit = yield* prompt
+      .shell({ sessionID: chat.id, agent: "learn", command: ": > .learn-shell-probe" })
+      .pipe(Effect.exit)
+
+    expect(Exit.isFailure(exit)).toBe(true)
+    expect(yield* Effect.promise(() => Bun.file(marker).exists())).toBe(false)
+  }),
+)
+
+noLLMServer.instance(
+  "learn mode blocks command shell expansions before they execute",
+  () =>
+    Effect.gen(function* () {
+      const { directory } = yield* TestInstance
+      const { prompt, chat } = yield* boot()
+      const marker = path.join(directory, ".learn-command-probe")
+      const exit = yield* prompt
+        .command({ sessionID: chat.id, agent: "learn", command: "write", arguments: "" })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      expect(yield* Effect.promise(() => Bun.file(marker).exists())).toBe(false)
+    }),
+  {
+    config: {
+      command: {
+        write: {
+          template: "!`: > .learn-command-probe`",
+        },
+      },
+    },
+  },
+)
+
 unixNoLLMServer(
   "shell captures stdout and stderr in completed tool output",
   () =>
@@ -1814,6 +1853,26 @@ unix(
       }),
     ),
   30_000,
+)
+
+it.instance("associate command expands the source file argument", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(providerCfg)
+    const { prompt, chat } = yield* boot()
+    yield* llm.text("done")
+
+    const result = yield* prompt.command({
+      sessionID: chat.id,
+      command: "associate",
+      arguments: "src/session/prompt.ts",
+    })
+
+    expect(result.info.role).toBe("assistant")
+    const inputs = yield* llm.inputs
+    const messages = JSON.stringify(inputs.at(-1)?.messages)
+    expect(messages).toContain("Associate every function in the provided source file")
+    expect(messages).toContain("Input file: src/session/prompt.ts")
+  }),
 )
 
 unixNoLLMServer(

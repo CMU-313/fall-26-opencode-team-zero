@@ -78,6 +78,7 @@ export interface Interface {
     modelID: ModelV2.ID
     agent: Agent.Info
     permission?: PermissionV1.Ruleset
+    readOnly?: boolean
   }) => Effect.Effect<Tool.Def[]>
 }
 
@@ -284,7 +285,10 @@ const layer = Layer.effect(
     })
 
     const tools: Interface["tools"] = Effect.fn("ToolRegistry.tools")(function* (input) {
-      const filtered = (yield* all()).filter((tool) => {
+      const s = yield* InstanceState.get(state)
+      const readonly = new Set([ReadTool.id, GlobTool.id, GrepTool.id, WebFetchTool.id, WebSearchTool.id])
+      const source = input.readOnly ? s.builtin.filter((tool) => readonly.has(tool.id)) : [...s.builtin, ...s.custom]
+      const filtered = source.filter((tool) => {
         if (tool.id === WebSearchTool.id) {
           return webSearchEnabled(input.providerID, { exa: flags.enableExa, parallel: flags.enableParallel })
         }

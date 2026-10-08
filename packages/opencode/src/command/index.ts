@@ -9,6 +9,7 @@ import { MCP } from "../mcp"
 import { Skill } from "../skill"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
+import PROMPT_ASSOCIATE from "./template/associate.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
 
 type State = {
@@ -46,6 +47,7 @@ export function hints(template: string) {
 export const Default = {
   INIT: "init",
   REVIEW: "review",
+  ASSOCIATE: "associate",
 } as const
 
 export interface Interface {
@@ -85,6 +87,13 @@ const layer = Layer.effect(
         },
         subtask: true,
         hints: hints(PROMPT_REVIEW),
+      }
+      commands[Default.ASSOCIATE] = {
+        name: Default.ASSOCIATE,
+        description: "associate functions in a file with their tests",
+        source: "command",
+        template: PROMPT_ASSOCIATE,
+        hints: hints(PROMPT_ASSOCIATE),
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {
