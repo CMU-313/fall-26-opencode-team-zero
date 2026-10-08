@@ -503,6 +503,7 @@ export function Session() {
             const naming = await sdk.client.session.prompt({
               sessionID: namingSession.data.id,
               workspace: project.workspace.current(),
+              agent: "learn",
               parts: [{ type: "text", text: buildGroupNamingPrompt(groups) }],
             })
             const text = naming.data?.parts
