@@ -107,10 +107,14 @@ describe("opencode serve (subprocess)", () => {
           expect(test.question.questions.map((question) => question.header)).toEqual(
             scenario.arguments ? ["Scope"] : ["Experience", "Scope"],
           )
-          yield* json<boolean>(`${server.url}/question/${test.question.id}/reply`, home, {
-            method: "POST",
-            body: JSON.stringify({ answers: scenario.answers }),
-          })
+          expect(
+            (
+              yield* json<boolean>(`${server.url}/question/${test.question.id}/reply`, home, {
+                method: "POST",
+                body: JSON.stringify({ answers: scenario.answers }),
+              })
+            ).body,
+          ).toBe(true)
           expect((yield* Fiber.join(test.command)).status).toBe(200)
           const messages = yield* json<Array<{ info: { role: string } }>>(
             `${server.url}/session/${test.session.id}/message`,
@@ -129,7 +133,9 @@ describe("opencode serve (subprocess)", () => {
       Effect.gen(function* () {
         const server = yield* opencode.serve()
         const test = yield* pendingNewcomer({ url: server.url, directory: home, arguments: "beginner" })
-        yield* json<boolean>(`${server.url}/question/${test.question.id}/reject`, home, { method: "POST" })
+        expect(
+          (yield* json<boolean>(`${server.url}/question/${test.question.id}/reject`, home, { method: "POST" })).body,
+        ).toBe(true)
         expect((yield* Fiber.join(test.command)).status).toBeGreaterThanOrEqual(400)
         expect((yield* json<unknown[]>(`${server.url}/session/${test.session.id}/message`, home)).body).toEqual([])
         expect(yield* llm.calls).toBe(0)
