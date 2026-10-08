@@ -49,6 +49,16 @@ describe("repository areas", () => {
     expect(prompt).not.toContain("src/session/file-8.ts")
   })
 
+  test("includes session-referenced files in the naming sample", () => {
+    const files = Array.from({ length: 12 }, (_, index) => `src/session/file-${index}.ts`)
+    const referenced = files.at(-1)!
+    const [group] = analyzeRepositoryGroups(files, [referenced])
+    const prompt = buildGroupNamingPrompt([group])
+
+    expect(prompt).toContain(`- ${referenced}`)
+    expect(prompt.split("\n- ")).toHaveLength(6)
+  })
+
   test("limits the map and applies model-generated names", () => {
     const groups = analyzeRepositoryGroups(
       Array.from({ length: 35 }, (_, index) => `packages/area-${index}/src/index.ts`),

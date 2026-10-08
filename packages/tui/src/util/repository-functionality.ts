@@ -115,7 +115,10 @@ export function buildGroupNamingPrompt(groups: readonly FunctionalGroup[]) {
   return [
     "Give each repository group a concise, beginner-friendly functionality name.",
     "Return only a JSON object mapping each exact group id to a name of at most four words.",
-    ...groups.flatMap((group) => [`Group: ${group.id}`, ...group.files.slice(0, 5).map((file) => `- ${file}`)]),
+    ...groups.flatMap((group) => [
+      `Group: ${group.id}`,
+      ...[...new Set([...group.referencedFiles, ...group.files])].slice(0, 5).map((file) => `- ${file}`),
+    ]),
   ].join("\n")
 }
 
