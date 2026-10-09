@@ -48,18 +48,13 @@
         "command": "opencode.explainSelection",
         "title": "Explain Selected Code",
         "category": "opencode",
-        "enablement": "opencode.learnModePreview && editorHasSelection"
+        "enablement": "editorHasSelection"
       },
       {
         "command": "opencode.suggestCode",
         "title": "Suggest Code at Cursor",
         "category": "opencode",
-        "enablement": "opencode.learnModePreview && editorTextFocus"
-      },
-      {
-        "command": "opencode.toggleLearnModePreview",
-        "title": "Toggle Learn Mode Preview",
-        "category": "opencode"
+        "enablement": "editorTextFocus"
       }
     ],
     "menus": {
@@ -72,12 +67,12 @@
       "editor/context": [
         {
           "command": "opencode.suggestCode",
-          "when": "opencode.learnModePreview && editorTextFocus",
+          "when": "editorTextFocus",
           "group": "navigation"
         },
         {
           "command": "opencode.explainSelection",
-          "when": "opencode.learnModePreview && editorHasSelection",
+          "when": "editorHasSelection",
           "group": "navigation"
         }
       ]
@@ -106,6 +101,20 @@
         "mac": "cmd+alt+k",
         "win": "ctrl+alt+K",
         "linux": "ctrl+alt+K"
+      },
+      {
+        "command": "opencode.explainSelection",
+        "title": "Explain Selected Code",
+        "key": "ctrl+alt+e",
+        "mac": "cmd+alt+e",
+        "when": "editorHasSelection && editorTextFocus"
+      },
+      {
+        "command": "opencode.suggestCode",
+        "title": "Suggest Code at Cursor",
+        "key": "ctrl+alt+g",
+        "mac": "cmd+alt+g",
+        "when": "editorTextFocus"
       }
     ]
   },
