@@ -8,6 +8,7 @@ import { Config } from "@/config/config"
 import { MCP } from "../mcp"
 import { Skill } from "../skill"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
+import PROMPT_NEWCOMER from "./template/newcomer.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import PROMPT_ASSOCIATE from "./template/associate.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
@@ -46,6 +47,7 @@ export function hints(template: string) {
 
 export const Default = {
   INIT: "init",
+  NEWCOMER: "newcomer",
   REVIEW: "review",
   ASSOCIATE: "associate",
 } as const
@@ -77,6 +79,16 @@ const layer = Layer.effect(
           return PROMPT_INITIALIZE.replace("${path}", ctx.worktree)
         },
         hints: hints(PROMPT_INITIALIZE),
+      }
+      commands[Default.NEWCOMER] = {
+        name: Default.NEWCOMER,
+        description: "explain this codebase [beginner|intermediate|advanced]",
+        agent: "build",
+        source: "command",
+        get template() {
+          return PROMPT_NEWCOMER.replace("${path}", ctx.worktree)
+        },
+        hints: hints(PROMPT_NEWCOMER),
       }
       commands[Default.REVIEW] = {
         name: Default.REVIEW,
