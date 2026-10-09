@@ -56,6 +56,7 @@ import { SessionTable } from "@opencode-ai/core/session/sql"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { LLMEvent } from "@opencode-ai/llm"
+import { Question } from "@/question"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -140,6 +141,7 @@ const layer = Layer.effect(
     const events = yield* EventV2Bridge.Service
     const flags = yield* RuntimeFlags.Service
     const database = yield* Database.Service
+    const question = yield* Question.Service
     const { db } = database
     const ops = Effect.fn("SessionPrompt.ops")(function* () {
       return {
@@ -1349,6 +1351,11 @@ const layer = Layer.effect(
     const shell: (input: ShellInput) => Effect.Effect<SessionV1.WithParts, Session.BusyError> = Effect.fn(
       "SessionPrompt.shell",
     )(function* (input: ShellInput) {
+      if (input.agent === "learn") {
+        const error = new NamedError.Unknown({ message: "Learn mode does not allow shell commands." })
+        yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
+        throw error
+      }
       const ready = yield* Latch.make()
       return yield* state.startShell(input.sessionID, lastAssistant(input.sessionID), shellImpl(input, ready), ready)
     })
@@ -1367,9 +1374,76 @@ const layer = Layer.effect(
         yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
         throw error
       }
+      const requestedExperience = input.arguments.trim().toLowerCase()
+      const experience = ["beginner", "intermediate", "advanced"].find((item) => item === requestedExperience)
+      const newcomerAnswers =
+        input.command === Command.Default.NEWCOMER
+          ? yield* question
+              .ask({
+                sessionID: input.sessionID,
+                questions: [
+                  ...(experience
+                    ? []
+                    : [
+                        {
+                          header: "Experience",
+                          question: "What is your experience level?",
+                          options: [
+                            { label: "Beginner", description: "Plain language and the smallest useful set of files" },
+                            {
+                              label: "Intermediate",
+                              description: "Development terminology, connections, and conventions",
+                            },
+                            {
+                              label: "Advanced",
+                              description: "Architecture, control flow, abstractions, and tradeoffs",
+                            },
+                          ],
+                          multiple: false,
+                          custom: false,
+                        },
+                      ]),
+                  {
+                    header: "Scope",
+                    question: "What would you like to learn about this codebase?",
+                    options: [
+                      { label: "All areas", description: "Show the complete newcomer guide" },
+                      { label: "Entry points", description: "Show where execution begins and what to read first" },
+                      { label: "Configuration", description: "Show files that control project behavior and tooling" },
+                      { label: "Tests", description: "Show test-only directories, files, and conventions" },
+                      { label: "Documentation", description: "Summarize README and other orientation documents" },
+                      { label: "Skip initially", description: "Show code that does not need to be understood yet" },
+                      {
+                        label: "Development setup",
+                        description: "Show verified install, run, test, lint, and typecheck commands",
+                      },
+                      {
+                        label: "First contribution",
+                        description: "Suggest low-risk areas for a newcomer to work on",
+                      },
+                    ],
+                    multiple: false,
+                    custom: true,
+                  },
+                ],
+              })
+              .pipe(Effect.catch(() => Effect.interrupt))
+          : undefined
+      const commandArguments = newcomerAnswers
+        ? [
+            `Experience level: ${experience ?? newcomerAnswers[0]?.[0]?.toLowerCase()}`,
+            `Selected scope: ${newcomerAnswers.at(-1)?.join(", ")}`,
+          ].join("\n")
+        : input.arguments
       const agentName = cmd.agent ?? input.agent
 
-      const raw = input.arguments.match(argsRegex) ?? []
+      if (input.agent === "learn" || agentName === "learn") {
+        const error = new NamedError.Unknown({ message: "Learn mode does not allow commands." })
+        yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
+        throw error
+      }
+
+      const raw = commandArguments.match(argsRegex) ?? []
       const args = raw.map((arg) => arg.replace(quoteTrimRegex, ""))
       const templateCommand = yield* Effect.promise(async () => cmd.template)
 
@@ -1388,10 +1462,10 @@ const layer = Layer.effect(
         return args[argIndex]
       })
       const usesArgumentsPlaceholder = templateCommand.includes("$ARGUMENTS")
-      let template = withArgs.replaceAll("$ARGUMENTS", input.arguments)
+      let template = withArgs.replaceAll("$ARGUMENTS", commandArguments)
 
-      if (placeholders.length === 0 && !usesArgumentsPlaceholder && input.arguments.trim()) {
-        template = template + "\n\n" + input.arguments
+      if (placeholders.length === 0 && !usesArgumentsPlaceholder && commandArguments.trim()) {
+        template = template + "\n\n" + commandArguments
       }
 
       const shellMatches = ConfigMarkdown.shell(template)
@@ -1625,6 +1699,7 @@ export const node = LayerNode.make({
     EventV2Bridge.node,
     RuntimeFlags.node,
     Database.node,
+    Question.node,
   ],
 })
 

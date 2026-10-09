@@ -12,6 +12,7 @@ import { ProviderTransform } from "@/provider/transform"
 import PROMPT_GENERATE from "./generate.txt"
 import PROMPT_COMPACTION from "./prompt/compaction.txt"
 import PROMPT_EXPLORE from "./prompt/explore.txt"
+import PROMPT_LEARN from "./prompt/learn.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
 import { Permission } from "@/permission"
@@ -178,6 +179,25 @@ const layer = Layer.effect(
             ),
             mode: "primary",
             native: true,
+          },
+          learn: {
+            name: "learn",
+            description: "Learn mode. Explores the codebase without making changes.",
+            options: {},
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                "*": "deny",
+                read: "allow",
+                glob: "allow",
+                grep: "allow",
+                webfetch: "allow",
+                websearch: "allow",
+              }),
+            ),
+            mode: "primary",
+            native: true,
+            prompt: PROMPT_LEARN,
           },
           general: {
             name: "general",

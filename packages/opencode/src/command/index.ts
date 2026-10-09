@@ -8,7 +8,9 @@ import { Config } from "@/config/config"
 import { MCP } from "../mcp"
 import { Skill } from "../skill"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
+import PROMPT_NEWCOMER from "./template/newcomer.txt"
 import PROMPT_REVIEW from "./template/review.txt"
+import PROMPT_ASSOCIATE from "./template/associate.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
 
 type State = {
@@ -45,7 +47,9 @@ export function hints(template: string) {
 
 export const Default = {
   INIT: "init",
+  NEWCOMER: "newcomer",
   REVIEW: "review",
+  ASSOCIATE: "associate",
 } as const
 
 export interface Interface {
@@ -76,6 +80,16 @@ const layer = Layer.effect(
         },
         hints: hints(PROMPT_INITIALIZE),
       }
+      commands[Default.NEWCOMER] = {
+        name: Default.NEWCOMER,
+        description: "explain this codebase [beginner|intermediate|advanced]",
+        agent: "build",
+        source: "command",
+        get template() {
+          return PROMPT_NEWCOMER.replace("${path}", ctx.worktree)
+        },
+        hints: hints(PROMPT_NEWCOMER),
+      }
       commands[Default.REVIEW] = {
         name: Default.REVIEW,
         description: "review changes [commit|branch|pr], defaults to uncommitted",
@@ -85,6 +99,13 @@ const layer = Layer.effect(
         },
         subtask: true,
         hints: hints(PROMPT_REVIEW),
+      }
+      commands[Default.ASSOCIATE] = {
+        name: Default.ASSOCIATE,
+        description: "associate functions in a file with their tests",
+        source: "command",
+        template: PROMPT_ASSOCIATE,
+        hints: hints(PROMPT_ASSOCIATE),
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {

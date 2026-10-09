@@ -1533,6 +1533,45 @@ it.instance("shell rejects with BusyError when loop running", () =>
   }),
 )
 
+noLLMServer.instance("learn mode blocks direct shell commands before they execute", () =>
+  Effect.gen(function* () {
+    const { directory } = yield* TestInstance
+    const { prompt, chat } = yield* boot()
+    const marker = path.join(directory, ".learn-shell-probe")
+    const exit = yield* prompt
+      .shell({ sessionID: chat.id, agent: "learn", command: ": > .learn-shell-probe" })
+      .pipe(Effect.exit)
+
+    expect(Exit.isFailure(exit)).toBe(true)
+    expect(yield* Effect.promise(() => Bun.file(marker).exists())).toBe(false)
+  }),
+)
+
+noLLMServer.instance(
+  "learn mode blocks command shell expansions before they execute",
+  () =>
+    Effect.gen(function* () {
+      const { directory } = yield* TestInstance
+      const { prompt, chat } = yield* boot()
+      const marker = path.join(directory, ".learn-command-probe")
+      const exit = yield* prompt
+        .command({ sessionID: chat.id, agent: "learn", command: "write", arguments: "" })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      expect(yield* Effect.promise(() => Bun.file(marker).exists())).toBe(false)
+    }),
+  {
+    config: {
+      command: {
+        write: {
+          template: "!`: > .learn-command-probe`",
+        },
+      },
+    },
+  },
+)
+
 unixNoLLMServer(
   "shell captures stdout and stderr in completed tool output",
   () =>
@@ -1814,6 +1853,26 @@ unix(
       }),
     ),
   30_000,
+)
+
+it.instance("associate command expands the source file argument", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(providerCfg)
+    const { prompt, chat } = yield* boot()
+    yield* llm.text("done")
+
+    const result = yield* prompt.command({
+      sessionID: chat.id,
+      command: "associate",
+      arguments: "src/session/prompt.ts",
+    })
+
+    expect(result.info.role).toBe("assistant")
+    const inputs = yield* llm.inputs
+    const messages = JSON.stringify(inputs.at(-1)?.messages)
+    expect(messages).toContain("Associate every function in the provided source file")
+    expect(messages).toContain("Input file: src/session/prompt.ts")
+  }),
 )
 
 unixNoLLMServer(
@@ -2410,6 +2469,165 @@ noLLMServer.instance(
       }
     }),
   30_000,
+)
+
+noLLMServer.instance(
+  "newcomer command is registered with its guide template",
+  () =>
+    Effect.gen(function* () {
+      const command = yield* (yield* Command.Service).get(Command.Default.NEWCOMER)
+      expect(command).toMatchObject({ name: "newcomer", agent: "build", source: "command" })
+      expect(yield* Effect.promise(() => Promise.resolve(command?.template))).toContain("Return the guide as Markdown tables")
+    }),
+)
+
+const newcomerScopes = [
+  "All areas",
+  "Entry points",
+  "Configuration",
+  "Tests",
+  "Documentation",
+  "Skip initially",
+  "Development setup",
+  "First contribution",
+]
+
+const pendingNewcomer = Effect.fn("test.pendingNewcomer")(function* (arguments_: string) {
+  const prompt = yield* SessionPrompt.Service
+  const sessions = yield* Session.Service
+  const questions = yield* Question.Service
+  const session = yield* sessions.create({})
+  const command = yield* prompt
+    .command({ sessionID: session.id, command: Command.Default.NEWCOMER, arguments: arguments_ })
+    .pipe(Effect.forkChild)
+  const request = yield* pollWithTimeout(
+    questions.list().pipe(Effect.map((items) => items.find((item) => item.sessionID === session.id))),
+    "newcomer questions did not appear",
+    "20 seconds",
+  )
+  return {
+    command,
+    dismiss: questions.reject(request.id).pipe(Effect.andThen(Fiber.await(command))),
+    questions,
+    request,
+    session,
+    sessions,
+  }
+})
+
+noLLMServer.instance(
+  "newcomer asks for experience and scope with single-select options",
+  () =>
+    Effect.gen(function* () {
+      const test = yield* pendingNewcomer("")
+      expect(test.request.questions.map((item) => item.header)).toEqual(["Experience", "Scope"])
+      expect(test.request.questions.every((item) => item.multiple === false)).toBe(true)
+      yield* test.dismiss
+    }),
+)
+
+;["Beginner", "INTERMEDIATE", " advanced "].forEach((level) =>
+  noLLMServer.instance(`newcomer accepts ${level.trim().toLowerCase()} experience`, () =>
+    Effect.gen(function* () {
+      const test = yield* pendingNewcomer(level)
+      expect(test.request.questions.map((item) => item.header)).toEqual(["Scope"])
+      yield* test.dismiss
+    }),
+  ),
+)
+
+;["", "expert", "begin", "beginner developer"].forEach((level) =>
+  noLLMServer.instance(`newcomer rejects unsupported experience '${level || "empty"}'`, () =>
+    Effect.gen(function* () {
+      const test = yield* pendingNewcomer(level)
+      expect(test.request.questions.map((item) => item.header)).toEqual(["Experience", "Scope"])
+      yield* test.dismiss
+    }),
+  ),
+)
+
+newcomerScopes.forEach((scope) =>
+  noLLMServer.instance(`newcomer offers the ${scope} scope`, () =>
+    Effect.gen(function* () {
+      const test = yield* pendingNewcomer("beginner")
+      expect(test.request.questions[0]?.options.map((item) => item.label)).toContain(scope)
+      yield* test.dismiss
+    }),
+  ),
+)
+
+noLLMServer.instance("newcomer scope accepts custom input", () =>
+  Effect.gen(function* () {
+    const test = yield* pendingNewcomer("beginner")
+    expect(test.request.questions[0]?.custom).toBe(true)
+    yield* test.dismiss
+  }),
+)
+
+noLLMServer.instance("newcomer cancellation clears the pending request", () =>
+  Effect.gen(function* () {
+    const test = yield* pendingNewcomer("")
+    const exit = yield* test.dismiss
+    expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(true)
+    expect(yield* test.questions.list()).toEqual([])
+  }),
+)
+
+it.instance("non-newcomer commands do not ask newcomer questions", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(providerCfg)
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const questions = yield* Question.Service
+    yield* llm.text("initialized")
+    yield* prompt.command({ sessionID: (yield* sessions.create({})).id, command: Command.Default.INIT, arguments: "" })
+    expect(yield* questions.list()).toEqual([])
+  }),
+)
+
+const completeNewcomer = Effect.fn("test.completeNewcomer")(function* (input: {
+  level: string
+  scope: string
+  response?: string
+}) {
+  const { llm } = yield* useServerConfig(providerCfg)
+  const test = yield* pendingNewcomer(input.level)
+  yield* llm.text(input.response ?? "guide")
+  yield* test.questions.reply({ requestID: test.request.id, answers: [[input.scope]] })
+  const result = yield* Fiber.join(test.command)
+  return {
+    inputs: yield* llm.inputs,
+    messages: yield* test.sessions.messages({ sessionID: test.session.id }),
+    result,
+  }
+})
+
+newcomerScopes.forEach((scope) =>
+  it.instance(`newcomer integration completes the ${scope} workflow`, () =>
+    Effect.gen(function* () {
+      const test = yield* completeNewcomer({ level: "intermediate", scope, response: `${scope} guide` })
+      expect(JSON.stringify(test.inputs)).toContain(`Selected scope: ${scope}`)
+      expect(test.messages.map((message) => message.info.role)).toEqual(["user", "assistant"])
+      expect(test.result.parts).toContainEqual(expect.objectContaining({ type: "text", text: `${scope} guide` }))
+    }),
+  ),
+)
+
+noLLMServer.instance("newcomer integration does not persist a dismissed prompt", () =>
+  Effect.gen(function* () {
+    const test = yield* pendingNewcomer("")
+    yield* test.dismiss
+    expect(yield* test.sessions.messages({ sessionID: test.session.id })).toEqual([])
+  }),
+)
+
+noLLMServer.instance("newcomer integration isolates concurrent sessions", () =>
+  Effect.gen(function* () {
+    const first = yield* pendingNewcomer("beginner")
+    const second = yield* pendingNewcomer("advanced")
+    expect(first.request.sessionID).not.toBe(second.request.sessionID)
+    yield* Effect.all([first.dismiss, second.dismiss])
+  }),
 )
 
 noLLMServer.instance(
