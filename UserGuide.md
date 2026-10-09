@@ -26,19 +26,20 @@ Some examples of correct command call:
 /associate src/link-to-math.ts
 /associate
 
-If a single valid file is included, the LLM will be queried. If there are more than one file included, it will throw an error. If no files are included, the user will be prompted for a file path. If the file is not valid, the command throws an error and does not send the LLM a request.
+If a single valid file is included, the LLM will be queried.
+- a valid file is inside the project and readable
 
 ### User testing
 
-1. Run `/associate [file path]` and confirm that .
-2. 
-3. Check that the response uses Markdown tables and references files that exist in the repository.
-4. 
+1. Start Opencode and ensure a model is configured. Then open a session rooted in the repository that needs inspecting.
+2. Run `/associate [file path]` and confirm that it is accepted.
+3. Verify that a markdown table is shared in the terminal separated into columns of Function, Source, Test(s), and association.
+4. Check that the information for each function is correct including file location and line number. Association is split into direct, indirect, or untested. Manually verify that the claimed relationships are real.
 
 ### Automated tests
 
 - [`packages/opencode/test/session/prompt.test.ts`](packages/opencode/test/session/prompt.test.ts) has 18 tests. 
-They cover valid inputs, response structure, potential errors, and meta data.
+They cover valid inputs, response structure, potential errors, and exposed meta data.
 - [`packages/tui/test/associate.e2e.test.ts`](packages/tui/test/associate.e2e.test.ts) has one end-to-end TUI test using a mock llm and mocked event transports. It covers a normal flow of a /associate call including simulating user inputs, server responses, and ensuring the TUI updates to asynchronous events. The test confirms that the command is recognized and parsed into parts and the response becomes visible in the terminal UI.
 
 
