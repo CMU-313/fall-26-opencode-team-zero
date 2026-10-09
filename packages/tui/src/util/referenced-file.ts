@@ -18,14 +18,16 @@ export const referencedFileCommand = {
   },
 } as const
 
-export function collectReferencedFiles(parts: readonly SessionPart[]) {
+export function collectReferencedFiles(parts: readonly SessionPart[], directory = "") {
   const seen = new Set<string>()
+  const root = directory.replaceAll("\\", "/").replace(/\/$/, "")
 
   return parts.flatMap((part) => {
     const filePath = referencedFilePath(part)
     if (!filePath) return []
 
-    const normalized = filePath.replaceAll("\\", "/")
+    const path = filePath.replaceAll("\\", "/")
+    const normalized = root && path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path
     if (seen.has(normalized)) return []
     seen.add(normalized)
     return [normalized]
