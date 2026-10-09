@@ -21,9 +21,9 @@ import { useTerminalDimensions } from "@opentui/solid"
 import { Locale } from "../../util/locale"
 import type { PromptInfo } from "../../prompt/history"
 import { useFrecency } from "../../prompt/frecency"
-import { useBindings, useCommandSlashes, useOpencodeModeStack } from "../../keymap"
+import { useBindings, useCommandSlashes, useOpencodeKeymap, useOpencodeModeStack } from "../../keymap"
 import { displayCharAt, mentionTriggerIndex } from "../../prompt/display"
-import { visibleCommands, visibleSlashCommands } from "../../prompt/command"
+import { isGroupCommandVisible, visibleCommands } from "../../prompt/command"
 import type { FileSystemEntry } from "@opencode-ai/sdk/v2"
 
 function removeLineRange(input: string) {
@@ -92,6 +92,7 @@ export function Autocomplete(props: {
   const data = useData()
   const project = useProject()
   const slashes = useCommandSlashes()
+  const keymap = useOpencodeKeymap()
   const modeStack = useOpencodeModeStack()
   const { theme } = useTheme()
   const dimensions = useTerminalDimensions()
@@ -448,7 +449,15 @@ export function Autocomplete(props: {
   )
 
   const commands = createMemo((): AutocompleteOption[] => {
-    const results: AutocompleteOption[] = visibleSlashCommands(slashes(), local.agent.current()?.name)
+    const results: AutocompleteOption[] = slashes().filter((command) => command.display !== "/group")
+
+    if (isGroupCommandVisible(props.sessionID, local.agent.current()?.name)) {
+      results.push({
+        display: "/group",
+        description: "Explore repository groups",
+        onSelect: () => keymap.dispatchCommand("session.references.group"),
+      })
+    }
 
     for (const serverCommand of visibleCommands(sync.data.command, local.agent.current()?.name)) {
       if (serverCommand.source === "skill") continue

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { isLearnMode, visibleCommands, visibleSlashCommands } from "../../src/prompt/command"
+import { isGroupCommandVisible, isLearnMode, visibleCommands } from "../../src/prompt/command"
 
 test("shows Learn-only commands only while Learn is selected", () => {
   const commands = [
@@ -22,8 +22,7 @@ test("recognizes only Learn as Learn mode", () => {
 })
 
 test("shows the repository group command only in Learn mode", () => {
-  const commands = [{ display: "/group" }, { display: "/help" }]
-
-  expect(visibleSlashCommands(commands, "build")).toEqual([{ display: "/help" }])
-  expect(visibleSlashCommands(commands, "learn")).toEqual(commands)
+  expect(isGroupCommandVisible("session", "build")).toBe(false)
+  expect(isGroupCommandVisible("session", "learn")).toBe(true)
+  expect(isGroupCommandVisible(undefined, "learn")).toBe(false)
 })
