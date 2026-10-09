@@ -1573,6 +1573,26 @@ noLLMServer.instance(
   },
 )
 
+it.instance("Learn-only commands reject execution from other modes", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(providerCfg)
+    const { prompt, chat } = yield* boot()
+    const exit = yield* prompt
+      .command({ sessionID: chat.id, agent: "build", command: Command.Default.ASSOCIATE, arguments: "" })
+      .pipe(Effect.exit)
+
+    expect(Exit.isFailure(exit)).toBe(true)
+    if (Exit.isFailure(exit)) {
+      const error = Cause.squash(exit.cause)
+      expect(NamedError.Unknown.isInstance(error)).toBe(true)
+      if (NamedError.Unknown.isInstance(error)) {
+        expect(error.data.message).toBe('Command "/associate" is only available in Learn mode.')
+      }
+    }
+    expect(yield* llm.calls).toBe(0)
+  }),
+)
+
 unixNoLLMServer(
   "shell captures stdout and stderr in completed tool output",
   () =>
@@ -1869,6 +1889,7 @@ it.instance(
         sessionID: chat.id,
         command: "associate",
         arguments: "src/session/prompt.ts",
+        agent: "learn",
       })
 
       expect(result.info.role).toBe("assistant")
@@ -2173,6 +2194,7 @@ it.instance("associate command exposes its built-in metadata", () =>
     expect(associate).toMatchObject({
       name: "associate",
       description: "associate functions in a file with their tests",
+      agent: "learn",
       source: "command",
       hints: ["$ARGUMENTS"],
     })
@@ -3057,7 +3079,7 @@ noLLMServer.instance(
   () =>
     Effect.gen(function* () {
       const command = yield* (yield* Command.Service).get(Command.Default.NEWCOMER)
-      expect(command).toMatchObject({ name: "newcomer", agent: "build", source: "command" })
+      expect(command).toMatchObject({ name: "newcomer", agent: "learn", source: "command" })
       expect(yield* Effect.promise(() => Promise.resolve(command?.template))).toContain("Return the guide as Markdown tables")
     }),
 )
@@ -3079,7 +3101,7 @@ const pendingNewcomer = Effect.fn("test.pendingNewcomer")(function* (arguments_:
   const questions = yield* Question.Service
   const session = yield* sessions.create({})
   const command = yield* prompt
-    .command({ sessionID: session.id, command: Command.Default.NEWCOMER, arguments: arguments_ })
+    .command({ sessionID: session.id, command: Command.Default.NEWCOMER, arguments: arguments_, agent: "learn" })
     .pipe(Effect.forkChild)
   const request = yield* pollWithTimeout(
     questions.list().pipe(Effect.map((items) => items.find((item) => item.sessionID === session.id))),

@@ -1374,6 +1374,16 @@ const layer = Layer.effect(
         yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
         throw error
       }
+      if (cmd.agent === "learn" && input.agent && input.agent !== "learn") {
+        const error = new NamedError.Unknown({ message: `Command "/${cmd.name}" is only available in Learn mode.` })
+        yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
+        throw error
+      }
+      if (input.agent === "learn" && cmd.agent !== "learn") {
+        const error = new NamedError.Unknown({ message: "Learn mode does not allow this command." })
+        yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
+        throw error
+      }
       const requestedExperience = input.arguments.trim().toLowerCase()
       const experience = ["beginner", "intermediate", "advanced"].find((item) => item === requestedExperience)
       const newcomerAnswers =
@@ -1436,12 +1446,6 @@ const layer = Layer.effect(
           ].join("\n")
         : input.arguments
       const agentName = cmd.agent ?? input.agent
-
-      if (input.agent === "learn" || agentName === "learn") {
-        const error = new NamedError.Unknown({ message: "Learn mode does not allow commands." })
-        yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
-        throw error
-      }
 
       const raw = commandArguments.match(argsRegex) ?? []
       const args = raw.map((arg) => arg.replace(quoteTrimRegex, ""))
