@@ -136,3 +136,84 @@ test("e2e: /group navigates the map and submits both explanation prompts", async
     mock.restore()
   }
 }, 15_000)
+
+test("e2e: /group reports an empty repository without starting Learn naming", async () => {
+  const setup = await createTestRenderer({ width: 100, height: 30, useThread: false })
+  const core = await import("@opentui/core")
+  mock.module("@opentui/core", () => ({ ...core, createCliRenderer: async () => setup.renderer }))
+  const events = createEventSource()
+  let api: TuiPluginApi | undefined
+  let filesRequested = false
+  let namingStarted = false
+  const session = {
+    id: "dummy",
+    title: "Demo",
+    slug: "dummy",
+    projectID: "project",
+    directory,
+    version: "0.0.0-test",
+    time: { created: 0, updated: 0 },
+  }
+  const calls = createFetch((url) => {
+    if (url.pathname === "/config/providers")
+      return json({
+        providers: [{ id: "test", name: "Test", models: { model: { id: "model", name: "Model" } } }],
+        default: { test: "model" },
+      })
+    if (url.pathname === "/agent") return json([{ name: "learn", mode: "primary" }])
+    if (url.pathname === "/session") return json([session])
+    if (url.pathname === "/session/dummy") return json(session)
+    if (url.pathname === "/find/file") {
+      filesRequested = true
+      return json([])
+    }
+  })
+  const server = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = input instanceof Request ? input : new Request(input, init)
+    if (request.method === "POST" && new URL(request.url).pathname === "/session") namingStarted = true
+    return calls.fetch(input, init)
+  }) as typeof fetch
+  let started!: () => void
+  const ready = new Promise<void>((resolve) => (started = resolve))
+
+  try {
+    const { run } = await import("../src/app")
+    const task = Effect.runPromise(
+      run({
+        url: "http://test",
+        directory,
+        config: createTuiResolvedConfig({ plugin_enabled: {} }),
+        fetch: server,
+        events: events.source,
+        args: { continue: true },
+        pluginHost: {
+          async start(input) {
+            input.runtime.setupSlots(input.api)
+            api = input.api
+            started()
+          },
+          async dispose() {},
+        },
+      }).pipe(Effect.provide(AppNodeBuilder.build(Global.node))),
+    )
+    await ready
+    await setup.renderOnce()
+    await setup.renderOnce()
+    api?.keymap.dispatchCommand("session.references.group")
+    for (let i = 0; i < 100 && !filesRequested; i++) await Bun.sleep(10)
+    expect(filesRequested).toBe(true)
+    for (let i = 0; i < 100; i++) {
+      await setup.renderOnce()
+      if (setup.captureCharFrame().includes("No repository files found")) break
+      await Bun.sleep(10)
+    }
+    expect(setup.captureCharFrame()).toContain("No repository files found")
+    expect(setup.captureCharFrame()).not.toContain("Repository Learning Map")
+    expect(namingStarted).toBe(false)
+    api?.keymap.dispatchCommand("app.exit")
+    await task
+  } finally {
+    if (!setup.renderer.isDestroyed) setup.renderer.destroy()
+    mock.restore()
+  }
+}, 15_000)
