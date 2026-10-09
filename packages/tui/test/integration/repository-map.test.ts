@@ -23,3 +23,17 @@ test("integration: completed session reads prioritize map groups and ground thei
   expect(buildFunctionalGroupPrompt(web, groups)).toContain("- apps/web/src/home.tsx")
   expect(buildFunctionalGroupPrompt(web.subgroups[0], groups)).toContain("- apps/web/src/home.tsx")
 })
+
+test("integration: repeated session reads count once in the map and guide", () => {
+  const reads = [
+    { type: "tool", tool: "read", state: { status: "completed", input: { filePath: "/repo/apps/web/src/home.tsx" } } },
+    { type: "tool", tool: "read", state: { status: "completed", input: { filePath: "apps/web/src/home.tsx" } } },
+  ]
+  const referenced = collectReferencedFiles(reads, "/repo")
+  const [web] = analyzeRepositoryGroups(["apps/web/src/home.tsx", "apps/web/src/about.tsx"], referenced)
+  const prompt = buildFunctionalGroupPrompt(web, [web])
+
+  expect(referenced).toEqual(["apps/web/src/home.tsx"])
+  expect(web.referencedFiles).toEqual(["apps/web/src/home.tsx"])
+  expect(prompt.match(/- apps\/web\/src\/home\.tsx/g)).toHaveLength(1)
+})
