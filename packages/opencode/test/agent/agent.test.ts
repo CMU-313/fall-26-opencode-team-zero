@@ -49,6 +49,7 @@ it.instance("returns default native agents when no config", () =>
     const agents = yield* load((svc) => svc.list())
     const names = agents.map((a) => a.name)
     expect(names).toContain("build")
+    expect(names).toContain("learn")
     expect(names).toContain("plan")
     expect(names).toContain("general")
     expect(names).toContain("explore")
@@ -77,6 +78,20 @@ it.instance("plan agent denies edits except .opencode/plans/*", () =>
     expect(evalPerm(plan, "edit")).toBe("deny")
     // But specific path is allowed
     expect(Permission.evaluate("edit", ".opencode/plans/foo.md", plan!.permission).action).toBe("allow")
+  }),
+)
+
+it.instance("learn agent only permits read-only tools", () =>
+  Effect.gen(function* () {
+    const learn = yield* load((svc) => svc.get("learn"))
+    expect(learn).toBeDefined()
+    expect(learn?.mode).toBe("primary")
+    expect(evalPerm(learn, "read")).toBe("allow")
+    expect(evalPerm(learn, "glob")).toBe("allow")
+    expect(evalPerm(learn, "grep")).toBe("allow")
+    expect(evalPerm(learn, "edit")).toBe("deny")
+    expect(evalPerm(learn, "bash")).toBe("deny")
+    expect(evalPerm(learn, "task")).toBe("deny")
   }),
 )
 
@@ -748,6 +763,7 @@ it.instance(
     config: {
       agent: {
         build: { disable: true },
+        learn: { disable: true },
         plan: { disable: true },
       },
     },

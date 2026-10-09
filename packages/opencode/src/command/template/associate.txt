@@ -1,0 +1,21 @@
+Associate every function in the provided source file with the tests that exercise it.
+
+Input file: $ARGUMENTS
+
+If no file was provided, ask the user for one and stop. Resolve relative paths from the project root. If the path does not identify exactly one readable file, explain the problem and stop.
+
+Read the complete source file, then:
+
+1. Identify its named functions, methods, and exported callable values. Include concise anonymous callbacks only when they implement a distinct behavior worth testing.
+2. Find candidate test files using the repository's naming and directory conventions, imports, symbol references, and focused searches.
+3. Read the relevant tests and determine which functions they exercise. Distinguish direct calls from behavior reached indirectly through a public entrypoint. Do not infer coverage from matching names alone.
+4. Report functions for which no test can be found.
+
+Return a concise Markdown table with these columns:
+
+| Function | Source | Test(s) | Association |
+| --- | --- | --- | --- |
+
+Use file paths and line numbers for source and test references. In Association, use `direct`, `indirect`, or `untested`, followed by a short explanation of the evidence. If one function has multiple relevant tests, list them together in the same row.
+
+End with a short coverage-gaps section only when untested functions exist. Do not edit files or generate tests unless the user explicitly asks for that afterward.

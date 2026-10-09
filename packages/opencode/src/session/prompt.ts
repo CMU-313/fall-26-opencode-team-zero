@@ -1351,6 +1351,11 @@ const layer = Layer.effect(
     const shell: (input: ShellInput) => Effect.Effect<SessionV1.WithParts, Session.BusyError> = Effect.fn(
       "SessionPrompt.shell",
     )(function* (input: ShellInput) {
+      if (input.agent === "learn") {
+        const error = new NamedError.Unknown({ message: "Learn mode does not allow shell commands." })
+        yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
+        throw error
+      }
       const ready = yield* Latch.make()
       return yield* state.startShell(input.sessionID, lastAssistant(input.sessionID), shellImpl(input, ready), ready)
     })
@@ -1431,6 +1436,12 @@ const layer = Layer.effect(
           ].join("\n")
         : input.arguments
       const agentName = cmd.agent ?? input.agent
+
+      if (input.agent === "learn" || agentName === "learn") {
+        const error = new NamedError.Unknown({ message: "Learn mode does not allow commands." })
+        yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
+        throw error
+      }
 
       const raw = commandArguments.match(argsRegex) ?? []
       const args = raw.map((arg) => arg.replace(quoteTrimRegex, ""))
