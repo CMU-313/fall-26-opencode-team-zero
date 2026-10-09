@@ -78,7 +78,7 @@ The `/associate` command gives developers the ability to choose specific files i
 
 ### How to use it
 
-In an Opencode repository session, run `/associate [file path]`. The LLM will run a structured prompt based on the file given by the user. The LLM will then return a markdown file specifying the functions, their locations, the locations of their tests, and the way it tests the model. The response will also note functions that are not tested.
+In an Opencode repository session, switch to learn mode, then run `/associate [file path]`. The LLM will run a structured prompt based on the file given by the user. The LLM will then return a markdown file specifying the functions, their locations, the locations of their tests, and the way it tests the model. The response will also note functions that are not tested.
 
 Some examples of correct command call:
 
