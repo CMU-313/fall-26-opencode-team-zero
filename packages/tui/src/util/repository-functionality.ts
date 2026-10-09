@@ -110,3 +110,48 @@ export function analyzeRepositoryGroups(input: readonly string[], referencedFile
     subgroups: rest.flatMap((item) => item.subgroups),
   }))
 }
+
+export function buildGroupNamingPrompt(groups: readonly FunctionalGroup[]) {
+  return [
+    "Give each repository group a concise, beginner-friendly functionality name.",
+    "Return only a JSON object mapping each exact group id to a name of at most four words.",
+    ...groups.flatMap((group) => [`Group: ${group.id}`, ...group.files.slice(0, 5).map((file) => `- ${file}`)]),
+  ].join("\n")
+}
+
+export function applyGroupNames(groups: readonly FunctionalGroup[], response: string) {
+  try {
+    const names = JSON.parse(response.slice(response.indexOf("{"), response.lastIndexOf("}") + 1)) as Record<
+      string,
+      unknown
+    >
+    return groups.map((group) => {
+      const title = names[group.id]
+      return typeof title === "string" ? { ...group, title: title.trim().slice(0, 50) } : group
+    })
+  } catch {
+    return [...groups]
+  }
+}
+
+export function buildFunctionalGroupPrompt(area: LearningArea, groups: readonly FunctionalGroup[]) {
+  const files = [...new Set([...area.referencedFiles, ...area.files])].slice(0, 15)
+  return [
+    `Teach me the ${area.title} functionality in this repository.`,
+    `Area root: ${area.root}`,
+    "Representative files:",
+    ...files.map((file) => `- ${file}`),
+    ...(area.files.length > files.length ? [`- (${area.files.length - files.length} additional files omitted)`] : []),
+    "",
+    "Other groups:",
+    ...groups
+      .filter((group) => group.id !== area.id)
+      .flatMap((group) => [
+        `- ${group.title} (${group.root})`,
+        ...group.files.slice(0, 2).map((file) => `  - ${file}`),
+      ]),
+    "",
+    "Read relevant files, explain this area's responsibility and important files, and identify evidence-backed relationships to other groups. For each relationship, explain its direction and cite concrete import, call, shared-data, or configuration evidence. Do not invent relationships.",
+    "Finish with a short reading order and one question to check my understanding. Cite file paths for project-specific claims.",
+  ].join("\n")
+}
