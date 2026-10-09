@@ -1929,6 +1929,37 @@ it.instance(
   30_000,
 )
 
+function parseAssociateReport(report: string) {
+  const lines = report.split("\n")
+  const table = lines
+    .filter((line) => line.startsWith("|"))
+    .map((line) =>
+      line
+        .split("|")
+        .slice(1, -1)
+        .map((cell) => cell.trim()),
+    )
+  const gap = lines.findIndex((line) => line === "## Coverage gaps")
+  return {
+    header: table[0] ?? [],
+    separator: table[1] ?? [],
+    rows: table.slice(2).map((cells) => ({
+      function: cells[0]?.replaceAll("`", "") ?? "",
+      source: cells[1] ?? "",
+      tests: cells[2] ?? "",
+      association: cells[3] ?? "",
+    })),
+    gaps:
+      gap === -1
+        ? []
+        : lines
+            .slice(gap + 1)
+            .map((line) => line.match(/^- `([^`]+)`/i)?.[1])
+            .filter((name): name is string => name !== undefined),
+    hasGaps: gap !== -1,
+  }
+}
+
 it.instance(
   "associate command returns and persists the requested report format",
   () =>
@@ -1950,6 +1981,9 @@ it.instance(
         'test("divides through calculate", () => {',
         '  expect(calculate("divide", 6, 2)).toBe(3)',
         "})",
+        'test("adds negative numbers", () => {',
+        "  expect(add(-2, -3)).toBe(-5)",
+        "})",
       ]
       yield* writeText(path.join(dir, "src/math.ts"), source.join("\n"))
       yield* writeText(path.join(dir, "test/math.test.ts"), tests.join("\n"))
@@ -1957,7 +1991,7 @@ it.instance(
       const report = [
         "| Function | Source | Test(s) | Association |",
         "| --- | --- | --- | --- |",
-        "| `add` | `src/math.ts:1` | `test/math.test.ts:5` | direct — called by the test |",
+        "| `add` | `src/math.ts:1` | `test/math.test.ts:5`<br>`test/math.test.ts:11` | direct — called by both tests |",
         "| `subtract` | `src/math.ts:2` | — | untested — no matching test found |",
         "| `divide` | `src/math.ts:3` | `test/math.test.ts:8` | indirect — reached through `calculate` |",
         "| `calculate` | `src/math.ts:4` | `test/math.test.ts:8` | direct — called by the test |",
@@ -1977,14 +2011,42 @@ it.instance(
       expect(result.parts.some((part) => part.type === "text" && part.text === report)).toBe(true)
       const stored = yield* MessageV2.get({ sessionID: chat.id, messageID: result.info.id })
       expect(stored.parts.some((part) => part.type === "text" && part.text === report)).toBe(true)
-      const sourceLines = (yield* Effect.promise(() => Bun.file(path.join(dir, "src/math.ts")).text())).split("\n")
-      const testLines = (yield* Effect.promise(() => Bun.file(path.join(dir, "test/math.test.ts")).text())).split("\n")
-      expect(sourceLines[0]).toContain("function add")
-      expect(sourceLines[1]).toContain("function subtract")
-      expect(sourceLines[2]).toContain("function divide")
-      expect(sourceLines[3]).toContain("function calculate")
-      expect(testLines[4]).toContain("add(2, 3)")
-      expect(testLines[7]).toContain('calculate("divide", 6, 2)')
+      const parsed = parseAssociateReport(report)
+      expect(parsed.header).toEqual(["Function", "Source", "Test(s)", "Association"])
+      expect(parsed.separator).toEqual(["---", "---", "---", "---"])
+      expect(parsed.rows.map((row) => row.function)).toEqual(["add", "subtract", "divide", "calculate"])
+      expect(new Set(parsed.rows.map((row) => row.function)).size).toBe(parsed.rows.length)
+      expect(parsed.rows.map((row) => row.association.split(" ")[0])).toEqual([
+        "direct",
+        "untested",
+        "indirect",
+        "direct",
+      ])
+      expect(parsed.rows.find((row) => row.function === "add")?.tests.match(/`[^`]+:\d+`/g)).toHaveLength(2)
+      expect(parsed.rows.find((row) => row.function === "subtract")?.tests).toBe("—")
+      expect(parsed.hasGaps).toBe(true)
+      expect(parsed.gaps).toEqual(["subtract"])
+      expect(parsed.rows.filter((row) => row.association.startsWith("untested")).map((row) => row.function)).toEqual(
+        parsed.gaps,
+      )
+
+      const citations = parsed.rows.flatMap((row) =>
+        [...`${row.source} ${row.tests}`.matchAll(/`([^`]+):(\d+)`/g)].map((match) => ({
+          function: row.function,
+          path: match[1],
+          line: Number(match[2]),
+          source: row.source.includes(match[0]),
+        })),
+      )
+      yield* Effect.forEach(citations, (citation) =>
+        Effect.gen(function* () {
+          const file = Bun.file(path.join(dir, citation.path))
+          expect(yield* Effect.promise(() => file.exists())).toBe(true)
+          const line = (yield* Effect.promise(() => file.text())).split("\n")[citation.line - 1]
+          expect(line?.trim().length).toBeGreaterThan(0)
+          if (citation.source) expect(line).toContain(citation.function)
+        }),
+      )
 
       const inputs = yield* llm.inputs
       const messages = JSON.stringify(inputs.at(-1)?.messages)
@@ -1995,6 +2057,52 @@ it.instance(
       expect(messages).toContain("Use file paths and line numbers")
       expect(messages).toContain("coverage-gaps section only when untested functions exist")
       expect(messages).toContain("Do not edit files or generate tests")
+      expect(yield* llm.calls).toBe(1)
+    }),
+  { git: true },
+  30_000,
+)
+
+it.instance(
+  "associate command omits coverage gaps when every function is tested",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      yield* writeText(
+        path.join(dir, "src/square.ts"),
+        "export function square(value: number) { return value * value }",
+      )
+      yield* writeText(
+        path.join(dir, "test/square.test.ts"),
+        'import { square } from "../src/square"\nexpect(square(3)).toBe(9)',
+      )
+      const { prompt, chat } = yield* boot()
+      const report = [
+        "| Function | Source | Test(s) | Association |",
+        "| --- | --- | --- | --- |",
+        "| `square` | `src/square.ts:1` | `test/square.test.ts:2` | direct — called by the test |",
+      ].join("\n")
+      yield* llm.text(report)
+
+      const result = yield* prompt.command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: "src/square.ts",
+      })
+
+      const text = result.parts.find((part) => part.type === "text")?.text ?? ""
+      const parsed = parseAssociateReport(text)
+      expect(parsed.rows).toEqual([
+        {
+          function: "square",
+          source: "`src/square.ts:1`",
+          tests: "`test/square.test.ts:2`",
+          association: "direct — called by the test",
+        },
+      ])
+      expect(parsed.hasGaps).toBe(false)
+      expect(parsed.gaps).toEqual([])
+      expect(text).not.toContain("Coverage gaps")
       expect(yield* llm.calls).toBe(1)
     }),
   { git: true },
