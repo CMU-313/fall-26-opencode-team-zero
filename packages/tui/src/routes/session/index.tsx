@@ -474,63 +474,60 @@ export function Session() {
   }
 
   const sessionCommandList = createMemo(() => [
-    ...(isLearnMode(local.agent.current()?.name)
-      ? [
-          {
-            ...referencedFileCommand,
-            run: async () => {
-              const referencedFiles = collectReferencedFiles(
-                messages().flatMap((message) => sync.data.part[message.id] ?? []),
-                project.instance.directory(),
-              )
-              dialog.replace(() => <DialogRepositoryMapLoading />)
-              const result = await sdk.client.find.files({
-                query: "",
-                type: "file",
-                limit: 10_000,
-                workspace: project.workspace.current(),
-              })
-              if (result.error) {
-                toast.show({ message: "Unable to load repository files", variant: "error" })
-                dialog.clear()
-                return
-              }
-              let groups = analyzeRepositoryGroups(result.data ?? [], referencedFiles)
-              if (groups.length === 0) {
-                toast.show({ message: "No repository files found", variant: "info" })
-                dialog.clear()
-                return
-              }
-              const namingSession = await sdk.client.session.create({ workspace: project.workspace.current() })
-              if (namingSession.data) {
-                try {
-                  const naming = await sdk.client.session.prompt({
-                    sessionID: namingSession.data.id,
-                    workspace: project.workspace.current(),
-                    agent: "learn",
-                    parts: [{ type: "text", text: buildGroupNamingPrompt(groups) }],
-                  })
-                  const text = naming.data?.parts
-                    .filter((part) => part.type === "text")
-                    .map((part) => part.text)
-                    .join("\n")
-                  if (text) groups = applyGroupNames(groups, text)
-                } catch {
-                  // Structural names remain available when model naming fails.
-                } finally {
-                  await sdk.client.session.delete({ sessionID: namingSession.data.id }).catch(() => undefined)
-                }
-              }
-              const explain = (group: LearningArea) => {
-                dialog.clear()
-                prompt?.set({ input: buildFunctionalGroupPrompt(group, groups), parts: [] })
-                setTimeout(() => prompt?.submit(), 0)
-              }
-              dialog.replace(() => <DialogRepositoryMap groups={groups} onExplain={explain} />)
-            },
-          },
-        ]
-      : []),
+    {
+      ...referencedFileCommand,
+      run: async () => {
+        if (!isLearnMode(local.agent.current()?.name)) return
+        const referencedFiles = collectReferencedFiles(
+          messages().flatMap((message) => sync.data.part[message.id] ?? []),
+          project.instance.directory(),
+        )
+        dialog.replace(() => <DialogRepositoryMapLoading />)
+        const result = await sdk.client.find.files({
+          query: "",
+          type: "file",
+          limit: 10_000,
+          workspace: project.workspace.current(),
+        })
+        if (result.error) {
+          toast.show({ message: "Unable to load repository files", variant: "error" })
+          dialog.clear()
+          return
+        }
+        let groups = analyzeRepositoryGroups(result.data ?? [], referencedFiles)
+        if (groups.length === 0) {
+          toast.show({ message: "No repository files found", variant: "info" })
+          dialog.clear()
+          return
+        }
+        const namingSession = await sdk.client.session.create({ workspace: project.workspace.current() })
+        if (namingSession.data) {
+          try {
+            const naming = await sdk.client.session.prompt({
+              sessionID: namingSession.data.id,
+              workspace: project.workspace.current(),
+              agent: "learn",
+              parts: [{ type: "text", text: buildGroupNamingPrompt(groups) }],
+            })
+            const text = naming.data?.parts
+              .filter((part) => part.type === "text")
+              .map((part) => part.text)
+              .join("\n")
+            if (text) groups = applyGroupNames(groups, text)
+          } catch {
+            // Structural names remain available when model naming fails.
+          } finally {
+            await sdk.client.session.delete({ sessionID: namingSession.data.id }).catch(() => undefined)
+          }
+        }
+        const explain = (group: LearningArea) => {
+          dialog.clear()
+          prompt?.set({ input: buildFunctionalGroupPrompt(group, groups), parts: [] })
+          setTimeout(() => prompt?.submit(), 0)
+        }
+        dialog.replace(() => <DialogRepositoryMap groups={groups} onExplain={explain} />)
+      },
+    },
     {
       title: session()?.share?.url ? "Copy share link" : "Share session",
       value: "session.share",
