@@ -52,6 +52,7 @@ import type { PromptInfo } from "../../component/prompt/history"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 import { DialogTimeline } from "./dialog-timeline"
 import { DialogForkFromTimeline } from "./dialog-fork-from-timeline"
+import { DialogRepositoryMap, DialogRepositoryMapLoading } from "./dialog-referenced-files"
 import { DialogSessionRename } from "../../component/dialog-session-rename"
 import { Sidebar } from "./sidebar"
 import { SubagentFooter } from "./subagent-footer.tsx"
@@ -82,6 +83,7 @@ import { getRevertDiffFiles } from "../../util/revert-diff"
 import { OPENCODE_BASE_MODE, useBindings, useCommandShortcut, useOpencodeKeymap } from "../../keymap"
 import { usePathFormatter } from "../../context/path-format"
 import { LocationProvider } from "../../context/location"
+import { analyzeRepositoryGroups } from "../../util/repository-functionality"
 
 addDefaultParsers(parsers.parsers)
 
@@ -464,6 +466,33 @@ export function Session() {
   }
 
   const sessionCommandList = createMemo(() => [
+    {
+      title: "Explore repository groups",
+      value: "session.references.group",
+      category: "Session",
+      slash: { name: "group", aliases: [] },
+      run: async () => {
+        dialog.replace(() => <DialogRepositoryMapLoading />)
+        const result = await sdk.client.find.files({
+          query: "",
+          type: "file",
+          limit: 10_000,
+          workspace: project.workspace.current(),
+        })
+        if (result.error) {
+          toast.show({ message: "Unable to load repository files", variant: "error" })
+          dialog.clear()
+          return
+        }
+        const groups = analyzeRepositoryGroups(result.data ?? [])
+        if (groups.length === 0) {
+          toast.show({ message: "No repository files found", variant: "info" })
+          dialog.clear()
+          return
+        }
+        dialog.replace(() => <DialogRepositoryMap groups={groups} />)
+      },
+    },
     {
       title: session()?.share?.url ? "Copy share link" : "Share session",
       value: "session.share",
