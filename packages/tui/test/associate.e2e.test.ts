@@ -40,12 +40,13 @@ test("e2e: /associate submits the source path and renders the association report
         providers: [{ id: "test", name: "Test", models: { model: { id: "model", name: "Model" } } }],
         default: { test: "model" },
       })
-    if (url.pathname === "/agent") return json([{ name: "build", mode: "primary" }])
+    if (url.pathname === "/agent") return json([{ name: "learn", mode: "primary" }])
     if (url.pathname === "/command")
       return json([
         {
           name: "associate",
           description: "associate functions in a file with their tests",
+          agent: "learn",
           source: "command",
           template: "",
           hints: ["$ARGUMENTS"],
@@ -64,7 +65,7 @@ test("e2e: /associate submits the source path and renders the association report
         id: "msg_associate",
         sessionID: session.id,
         role: "assistant" as const,
-        agent: "build",
+        agent: "learn",
         modelID: "model",
         providerID: "test",
         mode: "build",
@@ -141,7 +142,7 @@ test("e2e: /associate submits the source path and renders the association report
     setup.mockInput.pressEnter()
     for (let index = 0; index < 100 && !command; index++) await Bun.sleep(10)
 
-    expect(command).toMatchObject({ command: "associate", arguments: "src/math.ts", agent: "build" })
+    expect(command).toMatchObject({ command: "associate", arguments: "src/math.ts", agent: "learn" })
     for (let index = 0; index < 100; index++) {
       await setup.renderOnce()
       if (setup.captureCharFrame().includes("subtract")) break

@@ -84,6 +84,7 @@ import { OPENCODE_BASE_MODE, useBindings, useCommandShortcut, useOpencodeKeymap 
 import { usePathFormatter } from "../../context/path-format"
 import { LocationProvider } from "../../context/location"
 import { collectReferencedFiles, referencedFileCommand } from "../../util/referenced-file"
+import { isLearnMode } from "../../prompt/command"
 import {
   analyzeRepositoryGroups,
   applyGroupNames,
@@ -476,6 +477,7 @@ export function Session() {
     {
       ...referencedFileCommand,
       run: async () => {
+        if (!isLearnMode(local.agent.current()?.name)) return
         const referencedFiles = collectReferencedFiles(
           messages().flatMap((message) => sync.data.part[message.id] ?? []),
           project.instance.directory(),

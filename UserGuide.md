@@ -1,6 +1,48 @@
 # User Documentation (5)
 
-## Vlad - X
+## Vlad - Learn Mode and Learning Commands
+
+Learn is OpenCode's read-only mode for understanding a repository without changing it. Select **Learn** from the agent selector before starting a learning workflow. Learn can inspect files, search the repository, and use web research tools, but it cannot edit files, run shell commands, or delegate tasks that could change the project.
+
+### Learn-only commands
+
+The following teammate-built learning workflows are available only while Learn is selected:
+
+- `/newcomer` creates a codebase orientation guide tailored to the user's experience level and chosen topic.
+- `/associate <file>` examines one source file and reports which tests exercise its functions. Omit the file to have Learn ask for one. The path must identify one readable file inside the current project.
+- `/group` opens the repository learning map for the current session. It groups repository files by functionality, prioritizes files Learn has already read in that session, and can generate explanations for a group or subgroup.
+
+`/newcomer` and `/associate` are server-backed slash commands. `/group` is a session command because it needs the session's read history, so it is available only after opening a session. In an active Learn session, type `/n`, `/a`, or `/g` to filter the slash-command autocomplete and select the desired command.
+
+### How the restriction works
+
+The command list carries an agent requirement for `/newcomer` and `/associate`. The TUI hides commands with a Learn requirement unless Learn is the active agent. The session service repeats that check before it creates a prompt, so manually sending one of those commands from Build or another mode is rejected before it reaches the model.
+
+`/group` remains registered during a session so it becomes available immediately when a user switches to Learn. Its autocomplete entry is hidden outside Learn, and its action checks the active agent again before loading repository files or creating a learning prompt. This prevents stale UI state or direct keymap dispatch from starting the workflow outside Learn.
+
+These command checks complement Learn's existing read-only enforcement: mutation-capable tools are not exposed to Learn, and direct shell execution is rejected. Switching back to Build restores the normal editing workflow, but the learning commands remain hidden there.
+
+### User testing
+
+1. Open a session in Build and type `/g`; `/group` should not appear.
+2. Switch that same session to Learn and type `/g`; **Explore repository groups** should appear without reopening the session.
+3. In Learn, run `/newcomer`, `/associate path/to/file`, and `/group`; confirm each workflow starts normally.
+4. Switch to Build and confirm `/newcomer`, `/associate`, and `/group` are absent from autocomplete.
+5. Attempt `/associate` from Build through a direct client request; it should fail before a model request is made.
+
+### Automated tests
+
+- [`packages/opencode/test/session/prompt.test.ts`](packages/opencode/test/session/prompt.test.ts) verifies Learn-only command metadata, successful Learn execution, and rejection from another mode before model execution.
+- [`packages/tui/test/prompt/command.test.ts`](packages/tui/test/prompt/command.test.ts) verifies visibility rules for server-backed Learn commands and `/group`.
+- [`packages/tui/test/associate.e2e.test.ts`](packages/tui/test/associate.e2e.test.ts) verifies `/associate` submits through Learn.
+- [`packages/tui/test/group-map.e2e.test.ts`](packages/tui/test/group-map.e2e.test.ts) verifies the repository-map workflow in Learn.
+
+Run the focused checks from the package directories:
+
+```bash
+cd packages/opencode && bun test test/session/prompt.test.ts && bun typecheck
+cd packages/tui && bun test test/prompt/command.test.ts test/associate.e2e.test.ts test/group-map.e2e.test.ts && bun typecheck
+```
 
 ## Jay - Guided Codebase Exploration as a Newcomer (`/newcomer`)
 

@@ -87,7 +87,7 @@ const layer = Layer.effect(
       commands[Default.NEWCOMER] = {
         name: Default.NEWCOMER,
         description: "explain this codebase [beginner|intermediate|advanced]",
-        agent: "build",
+        agent: "learn",
         source: "command",
         get template() {
           return PROMPT_NEWCOMER.replace("${path}", ctx.worktree)
@@ -107,6 +107,7 @@ const layer = Layer.effect(
       commands[Default.ASSOCIATE] = {
         name: Default.ASSOCIATE,
         description: "associate functions in a file with their tests",
+        agent: "learn",
         source: "command",
         template: PROMPT_ASSOCIATE,
         maxArguments: 1,

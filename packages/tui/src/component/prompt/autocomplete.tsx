@@ -14,14 +14,16 @@ import { getScrollAcceleration } from "../../util/scroll"
 import { useTuiPaths } from "../../context/runtime"
 import { useTuiConfig } from "../../config"
 import { useLocation } from "../../context/location"
+import { useLocal } from "../../context/local"
 import { useTheme, selectedForeground } from "../../context/theme"
 import { SplitBorder } from "../../ui/border"
 import { useTerminalDimensions } from "@opentui/solid"
 import { Locale } from "../../util/locale"
 import type { PromptInfo } from "../../prompt/history"
 import { useFrecency } from "../../prompt/frecency"
-import { useBindings, useCommandSlashes, useOpencodeModeStack } from "../../keymap"
+import { useBindings, useCommandSlashes, useOpencodeKeymap, useOpencodeModeStack } from "../../keymap"
 import { displayCharAt, mentionTriggerIndex } from "../../prompt/display"
+import { isGroupCommandVisible, visibleCommands } from "../../prompt/command"
 import type { FileSystemEntry } from "@opencode-ai/sdk/v2"
 
 function removeLineRange(input: string) {
@@ -90,6 +92,7 @@ export function Autocomplete(props: {
   const data = useData()
   const project = useProject()
   const slashes = useCommandSlashes()
+  const keymap = useOpencodeKeymap()
   const modeStack = useOpencodeModeStack()
   const { theme } = useTheme()
   const dimensions = useTerminalDimensions()
@@ -97,6 +100,7 @@ export function Autocomplete(props: {
   const tuiConfig = useTuiConfig()
   const paths = useTuiPaths()
   const location = useLocation()
+  const local = useLocal()
   const [store, setStore] = createStore({
     index: 0,
     selected: 0,
@@ -445,9 +449,17 @@ export function Autocomplete(props: {
   )
 
   const commands = createMemo((): AutocompleteOption[] => {
-    const results: AutocompleteOption[] = [...slashes()]
+    const results: AutocompleteOption[] = slashes().filter((command) => command.display !== "/group")
 
-    for (const serverCommand of sync.data.command) {
+    if (isGroupCommandVisible(props.sessionID, local.agent.current()?.name)) {
+      results.push({
+        display: "/group",
+        description: "Explore repository groups",
+        onSelect: () => keymap.dispatchCommand("session.references.group"),
+      })
+    }
+
+    for (const serverCommand of visibleCommands(sync.data.command, local.agent.current()?.name)) {
       if (serverCommand.source === "skill") continue
       const label = serverCommand.source === "mcp" ? ":mcp" : ""
       results.push({
