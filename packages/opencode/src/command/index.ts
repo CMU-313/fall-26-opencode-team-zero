@@ -14,7 +14,7 @@ import PROMPT_ASSOCIATE from "./template/associate.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
 
 type State = {
-  commands: Record<string, Info>
+  commands: Record<string, RuntimeInfo>
 }
 
 export const Event = {
@@ -34,6 +34,10 @@ export const Info = Schema.Struct({
 }).annotate({ identifier: "Command" })
 
 export type Info = Omit<Schema.Schema.Type<typeof Info>, "template"> & { template: Promise<string> | string }
+type RuntimeInfo = Info & {
+  maxArguments?: number
+  fileArgument?: boolean
+}
 
 export function hints(template: string) {
   const result: string[] = []
@@ -53,7 +57,7 @@ export const Default = {
 } as const
 
 export interface Interface {
-  readonly get: (name: string) => Effect.Effect<Info | undefined>
+  readonly get: (name: string) => Effect.Effect<RuntimeInfo | undefined>
   readonly list: () => Effect.Effect<Info[]>
 }
 
@@ -69,7 +73,7 @@ const layer = Layer.effect(
     const init = Effect.fn("Command.state")(function* (ctx: InstanceContext) {
       const cfg = yield* config.get()
       const bridge = yield* EffectBridge.make()
-      const commands: Record<string, Info> = {}
+      const commands: Record<string, RuntimeInfo> = {}
 
       commands[Default.INIT] = {
         name: Default.INIT,
@@ -105,6 +109,8 @@ const layer = Layer.effect(
         description: "associate functions in a file with their tests",
         source: "command",
         template: PROMPT_ASSOCIATE,
+        maxArguments: 1,
+        fileArgument: true,
         hints: hints(PROMPT_ASSOCIATE),
       }
 

@@ -8,6 +8,7 @@ import { EventV2Bridge } from "@/event-v2-bridge"
 import { expect } from "bun:test"
 import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer } from "effect"
 import path from "path"
+import { symlink } from "fs/promises"
 import { fileURLToPath } from "url"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { Agent as AgentSvc } from "../../src/agent/agent"
@@ -1855,24 +1856,604 @@ unix(
   30_000,
 )
 
-it.instance("associate command expands the source file argument", () =>
+it.instance(
+  "associate command expands the source file argument",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      yield* writeText(path.join(dir, "src/session/prompt.ts"), "export function prompt() {}")
+      const { prompt, chat } = yield* boot()
+      yield* llm.text("done")
+
+      const result = yield* prompt.command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: "src/session/prompt.ts",
+      })
+
+      expect(result.info.role).toBe("assistant")
+      const inputs = yield* llm.inputs
+      const messages = JSON.stringify(inputs.at(-1)?.messages)
+      expect(messages).toContain("Associate every function in the provided source file")
+      expect(messages).toContain("Input file: src/session/prompt.ts")
+      expect(yield* llm.calls).toBe(1)
+    }),
+  { git: true },
+  30_000,
+)
+
+it.instance(
+  "associate command accepts one quoted source file argument",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      yield* writeText(path.join(dir, "src/session/prompt with spaces.ts"), "export function prompt() {}")
+      const { prompt, chat } = yield* boot()
+      yield* llm.text("done")
+
+      const result = yield* prompt.command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: '"src/session/prompt with spaces.ts"',
+      })
+
+      expect(result.info.role).toBe("assistant")
+      const inputs = yield* llm.inputs
+      expect(JSON.stringify(inputs.at(-1)?.messages)).toContain('Input file: \\"src/session/prompt with spaces.ts\\"')
+      expect(yield* llm.calls).toBe(1)
+    }),
+  { git: true },
+  30_000,
+)
+
+it.instance(
+  "associate command accepts no source file argument",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const { prompt, chat } = yield* boot()
+      yield* llm.text("done")
+
+      const result = yield* prompt.command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: "",
+      })
+
+      expect(result.info.role).toBe("assistant")
+      const inputs = yield* llm.inputs
+      expect(JSON.stringify(inputs.at(-1)?.messages)).toContain(
+        "If no file was provided, ask the user for one and stop.",
+      )
+    }),
+  30_000,
+)
+
+function parseAssociateReport(report: string) {
+  const lines = report.split("\n")
+  const table = lines
+    .filter((line) => line.startsWith("|"))
+    .map((line) =>
+      line
+        .split("|")
+        .slice(1, -1)
+        .map((cell) => cell.trim()),
+    )
+  const gap = lines.findIndex((line) => line === "## Coverage gaps")
+  return {
+    header: table[0] ?? [],
+    separator: table[1] ?? [],
+    rows: table.slice(2).map((cells) => ({
+      function: cells[0]?.replaceAll("`", "") ?? "",
+      source: cells[1] ?? "",
+      tests: cells[2] ?? "",
+      association: cells[3] ?? "",
+    })),
+    gaps:
+      gap === -1
+        ? []
+        : lines
+            .slice(gap + 1)
+            .map((line) => line.match(/^- `([^`]+)`/i)?.[1])
+            .filter((name): name is string => name !== undefined),
+    hasGaps: gap !== -1,
+  }
+}
+
+it.instance(
+  "associate command returns and persists the requested report format",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      const source = [
+        "export function add(a: number, b: number) { return a + b }",
+        "export function subtract(a: number, b: number) { return a - b }",
+        "export function divide(a: number, b: number) { return a / b }",
+        'export function calculate(operation: "divide", a: number, b: number) { return divide(a, b) }',
+      ]
+      const tests = [
+        'import { expect, test } from "bun:test"',
+        'import { add, calculate } from "../src/math"',
+        "",
+        'test("adds", () => {',
+        "  expect(add(2, 3)).toBe(5)",
+        "})",
+        'test("divides through calculate", () => {',
+        '  expect(calculate("divide", 6, 2)).toBe(3)',
+        "})",
+        'test("adds negative numbers", () => {',
+        "  expect(add(-2, -3)).toBe(-5)",
+        "})",
+      ]
+      yield* writeText(path.join(dir, "src/math.ts"), source.join("\n"))
+      yield* writeText(path.join(dir, "test/math.test.ts"), tests.join("\n"))
+      const { prompt, chat } = yield* boot()
+      const report = [
+        "| Function | Source | Test(s) | Association |",
+        "| --- | --- | --- | --- |",
+        "| `add` | `src/math.ts:1` | `test/math.test.ts:5`<br>`test/math.test.ts:11` | direct — called by both tests |",
+        "| `subtract` | `src/math.ts:2` | — | untested — no matching test found |",
+        "| `divide` | `src/math.ts:3` | `test/math.test.ts:8` | indirect — reached through `calculate` |",
+        "| `calculate` | `src/math.ts:4` | `test/math.test.ts:8` | direct — called by the test |",
+        "",
+        "## Coverage gaps",
+        "",
+        "- `subtract` has no associated test.",
+      ].join("\n")
+      yield* llm.text(report)
+
+      const result = yield* prompt.command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: "src/math.ts",
+      })
+
+      expect(result.parts.some((part) => part.type === "text" && part.text === report)).toBe(true)
+      const stored = yield* MessageV2.get({ sessionID: chat.id, messageID: result.info.id })
+      expect(stored.parts.some((part) => part.type === "text" && part.text === report)).toBe(true)
+      const parsed = parseAssociateReport(report)
+      expect(parsed.header).toEqual(["Function", "Source", "Test(s)", "Association"])
+      expect(parsed.separator).toEqual(["---", "---", "---", "---"])
+      expect(parsed.rows.map((row) => row.function)).toEqual(["add", "subtract", "divide", "calculate"])
+      expect(new Set(parsed.rows.map((row) => row.function)).size).toBe(parsed.rows.length)
+      expect(parsed.rows.map((row) => row.association.split(" ")[0])).toEqual([
+        "direct",
+        "untested",
+        "indirect",
+        "direct",
+      ])
+      expect(parsed.rows.find((row) => row.function === "add")?.tests.match(/`[^`]+:\d+`/g)).toHaveLength(2)
+      expect(parsed.rows.find((row) => row.function === "subtract")?.tests).toBe("—")
+      expect(parsed.hasGaps).toBe(true)
+      expect(parsed.gaps).toEqual(["subtract"])
+      expect(parsed.rows.filter((row) => row.association.startsWith("untested")).map((row) => row.function)).toEqual(
+        parsed.gaps,
+      )
+
+      const citations = parsed.rows.flatMap((row) =>
+        [...`${row.source} ${row.tests}`.matchAll(/`([^`]+):(\d+)`/g)].map((match) => ({
+          function: row.function,
+          path: match[1],
+          line: Number(match[2]),
+          source: row.source.includes(match[0]),
+        })),
+      )
+      yield* Effect.forEach(citations, (citation) =>
+        Effect.gen(function* () {
+          const file = Bun.file(path.join(dir, citation.path))
+          expect(yield* Effect.promise(() => file.exists())).toBe(true)
+          const line = (yield* Effect.promise(() => file.text())).split("\n")[citation.line - 1]
+          expect(line?.trim().length).toBeGreaterThan(0)
+          if (citation.source) expect(line).toContain(citation.function)
+        }),
+      )
+
+      const inputs = yield* llm.inputs
+      const messages = JSON.stringify(inputs.at(-1)?.messages)
+      expect(messages).toContain("| Function | Source | Test(s) | Association |")
+      expect(messages).toContain("direct")
+      expect(messages).toContain("indirect")
+      expect(messages).toContain("untested")
+      expect(messages).toContain("Use file paths and line numbers")
+      expect(messages).toContain("coverage-gaps section only when untested functions exist")
+      expect(messages).toContain("Do not edit files or generate tests")
+      expect(yield* llm.calls).toBe(1)
+    }),
+  { git: true },
+  30_000,
+)
+
+it.instance(
+  "associate command omits coverage gaps when every function is tested",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      yield* writeText(
+        path.join(dir, "src/square.ts"),
+        "export function square(value: number) { return value * value }",
+      )
+      yield* writeText(
+        path.join(dir, "test/square.test.ts"),
+        'import { square } from "../src/square"\nexpect(square(3)).toBe(9)',
+      )
+      const { prompt, chat } = yield* boot()
+      const report = [
+        "| Function | Source | Test(s) | Association |",
+        "| --- | --- | --- | --- |",
+        "| `square` | `src/square.ts:1` | `test/square.test.ts:2` | direct — called by the test |",
+      ].join("\n")
+      yield* llm.text(report)
+
+      const result = yield* prompt.command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: "src/square.ts",
+      })
+
+      const text = result.parts.find((part) => part.type === "text")?.text ?? ""
+      const parsed = parseAssociateReport(text)
+      expect(parsed.rows).toEqual([
+        {
+          function: "square",
+          source: "`src/square.ts:1`",
+          tests: "`test/square.test.ts:2`",
+          association: "direct — called by the test",
+        },
+      ])
+      expect(parsed.hasGaps).toBe(false)
+      expect(parsed.gaps).toEqual([])
+      expect(text).not.toContain("Coverage gaps")
+      expect(yield* llm.calls).toBe(1)
+    }),
+  { git: true },
+  30_000,
+)
+
+it.instance(
+  "associate command accepts a single-quoted path with surrounding whitespace",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      yield* writeText(path.join(dir, "src/math with spaces.ts"), "export function add() {}")
+      const { prompt, chat } = yield* boot()
+      yield* llm.text("done")
+
+      const result = yield* prompt.command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: "   'src/math with spaces.ts'   ",
+      })
+
+      expect(result.info.role).toBe("assistant")
+      expect(JSON.stringify((yield* llm.inputs).at(-1)?.messages)).toContain(
+        "Input file:    'src/math with spaces.ts'   ",
+      )
+      expect(yield* llm.calls).toBe(1)
+    }),
+  { git: true },
+  30_000,
+)
+
+it.instance("associate command publishes its validation error", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(providerCfg)
+    const events = yield* EventV2Bridge.Service
+    const { prompt, chat } = yield* boot()
+    const errors: (typeof Session.Event.Error.data.Type)[] = []
+    const off = yield* events.listen((event) => {
+      if (event.type === Session.Event.Error.type) errors.push(event.data as typeof Session.Event.Error.data.Type)
+      return Effect.void
+    })
+
+    const exit = yield* prompt
+      .command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: "src/foo.ts src/bar.ts",
+      })
+      .pipe(Effect.exit)
+    yield* off
+
+    expect(Exit.isFailure(exit)).toBe(true)
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toMatchObject({
+      sessionID: chat.id,
+      error: { name: "UnknownError", data: { message: 'Command "/associate" accepts at most 1 argument.' } },
+    })
+    expect(yield* llm.calls).toBe(0)
+  }),
+)
+
+it.instance("associate command exposes its built-in metadata", () =>
+  Effect.gen(function* () {
+    yield* useServerConfig(providerCfg)
+    const commands = yield* Command.Service
+    const associate = (yield* commands.list()).find((command) => command.name === "associate")
+
+    expect(associate).toMatchObject({
+      name: "associate",
+      description: "associate functions in a file with their tests",
+      source: "command",
+      hints: ["$ARGUMENTS"],
+    })
+  }),
+)
+
+it.instance(
+  "configured associate command overrides built-in validation",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig((url) => ({
+        ...providerCfg(url),
+        command: {
+          associate: {
+            description: "custom associate",
+            template: "Custom associate: $ARGUMENTS",
+          },
+        },
+      }))
+      const { prompt, chat } = yield* boot()
+      yield* llm.text("done")
+
+      const result = yield* prompt.command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: "two arguments",
+      })
+
+      expect(result.info.role).toBe("assistant")
+      expect(JSON.stringify((yield* llm.inputs).at(-1)?.messages)).toContain("Custom associate: two arguments")
+      expect(yield* llm.calls).toBe(1)
+    }),
+  30_000,
+)
+
+unix(
+  "associate command accepts an in-project symlink target",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      const target = path.join(dir, "src/math.ts")
+      yield* writeText(target, "export function add() {}")
+      yield* Effect.promise(() => symlink(target, path.join(dir, "math-link.ts")))
+      const { prompt, chat } = yield* boot()
+      yield* llm.text("done")
+
+      const result = yield* prompt.command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: "math-link.ts",
+      })
+
+      expect(result.info.role).toBe("assistant")
+      expect(yield* llm.calls).toBe(1)
+    }),
+  { git: true },
+  30_000,
+)
+
+unix(
+  "associate command rejects a symlink target outside the project",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      const outside = path.join(path.dirname(dir), "outside.ts")
+      yield* writeText(outside, "export function outside() {}")
+      yield* Effect.promise(() => symlink(outside, path.join(dir, "outside-link.ts")))
+      const { prompt, chat } = yield* boot()
+
+      const exit = yield* prompt
+        .command({
+          sessionID: chat.id,
+          command: "associate",
+          arguments: "outside-link.ts",
+        })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        const error = Cause.squash(exit.cause)
+        expect(NamedError.Unknown.isInstance(error)).toBe(true)
+        if (NamedError.Unknown.isInstance(error)) {
+          expect(error.data.message).toBe('File must be inside the project: "outside-link.ts".')
+        }
+      }
+      expect(yield* llm.calls).toBe(0)
+    }),
+  { git: true },
+)
+
+unix(
+  "associate command rejects a broken symlink",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      yield* Effect.promise(() => symlink(path.join(dir, "missing.ts"), path.join(dir, "broken-link.ts")))
+      const { prompt, chat } = yield* boot()
+
+      const exit = yield* prompt
+        .command({
+          sessionID: chat.id,
+          command: "associate",
+          arguments: "broken-link.ts",
+        })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        const error = Cause.squash(exit.cause)
+        expect(NamedError.Unknown.isInstance(error)).toBe(true)
+        if (NamedError.Unknown.isInstance(error)) {
+          expect(error.data.message).toBe('File not found: "broken-link.ts".')
+        }
+      }
+      expect(yield* llm.calls).toBe(0)
+    }),
+  { git: true },
+)
+
+it.instance("associate command rejects multiple source file arguments", () =>
   Effect.gen(function* () {
     const { llm } = yield* useServerConfig(providerCfg)
     const { prompt, chat } = yield* boot()
-    yield* llm.text("done")
 
-    const result = yield* prompt.command({
-      sessionID: chat.id,
-      command: "associate",
-      arguments: "src/session/prompt.ts",
-    })
+    const exit = yield* prompt
+      .command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: "src/foo.ts src/bar.ts",
+      })
+      .pipe(Effect.exit)
 
-    expect(result.info.role).toBe("assistant")
-    const inputs = yield* llm.inputs
-    const messages = JSON.stringify(inputs.at(-1)?.messages)
-    expect(messages).toContain("Associate every function in the provided source file")
-    expect(messages).toContain("Input file: src/session/prompt.ts")
+    expect(Exit.isFailure(exit)).toBe(true)
+    if (Exit.isFailure(exit)) {
+      const err = Cause.squash(exit.cause)
+      expect(NamedError.Unknown.isInstance(err)).toBe(true)
+      if (NamedError.Unknown.isInstance(err)) {
+        expect(err.data.message).toBe('Command "/associate" accepts at most 1 argument.')
+      }
+    }
+    expect(yield* llm.calls).toBe(0)
   }),
+)
+
+it.instance(
+  "associate command rejects a source file that does not exist",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const { prompt, chat } = yield* boot()
+
+      const exit = yield* prompt
+        .command({
+          sessionID: chat.id,
+          command: "associate",
+          arguments: "src/missing.ts",
+        })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        const err = Cause.squash(exit.cause)
+        expect(NamedError.Unknown.isInstance(err)).toBe(true)
+        if (NamedError.Unknown.isInstance(err)) {
+          expect(err.data.message).toBe('File not found: "src/missing.ts".')
+        }
+      }
+      expect(yield* llm.calls).toBe(0)
+    }),
+  { git: true },
+)
+
+it.instance(
+  "associate command accepts an absolute source file path inside the project",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      const file = path.join(dir, "src/session/prompt.ts")
+      yield* writeText(file, "export function prompt() {}")
+      const { prompt, chat } = yield* boot()
+      yield* llm.text("done")
+
+      const result = yield* prompt.command({
+        sessionID: chat.id,
+        command: "associate",
+        arguments: file,
+      })
+
+      expect(result.info.role).toBe("assistant")
+      expect(JSON.stringify((yield* llm.inputs).at(-1)?.messages)).toContain(`Input file: ${file}`)
+      expect(yield* llm.calls).toBe(1)
+    }),
+  { git: true },
+)
+
+it.instance(
+  "associate command rejects paths outside the project",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const { prompt, chat } = yield* boot()
+
+      const exit = yield* prompt
+        .command({
+          sessionID: chat.id,
+          command: "associate",
+          arguments: "../outside.ts",
+        })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        const err = Cause.squash(exit.cause)
+        expect(NamedError.Unknown.isInstance(err)).toBe(true)
+        if (NamedError.Unknown.isInstance(err)) {
+          expect(err.data.message).toBe('File must be inside the project: "../outside.ts".')
+        }
+      }
+      expect(yield* llm.calls).toBe(0)
+    }),
+  { git: true },
+)
+
+it.instance(
+  "associate command rejects directories",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const { prompt, chat } = yield* boot()
+
+      const exit = yield* prompt
+        .command({
+          sessionID: chat.id,
+          command: "associate",
+          arguments: ".",
+        })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        const err = Cause.squash(exit.cause)
+        expect(NamedError.Unknown.isInstance(err)).toBe(true)
+        if (NamedError.Unknown.isInstance(err)) {
+          expect(err.data.message).toBe('File not found: ".".')
+        }
+      }
+      expect(yield* llm.calls).toBe(0)
+    }),
+  { git: true },
+)
+
+unix(
+  "associate command rejects an unreadable source file",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      const fs = yield* FSUtil.Service
+      const file = path.join(dir, "src/session/prompt.ts")
+      yield* writeText(file, "export function prompt() {}")
+      yield* fs.chmod(file, 0)
+      const { prompt, chat } = yield* boot()
+
+      const exit = yield* prompt
+        .command({
+          sessionID: chat.id,
+          command: "associate",
+          arguments: "src/session/prompt.ts",
+        })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        const err = Cause.squash(exit.cause)
+        expect(NamedError.Unknown.isInstance(err)).toBe(true)
+        if (NamedError.Unknown.isInstance(err)) {
+          expect(err.data.message).toBe('File is not readable: "src/session/prompt.ts".')
+        }
+      }
+      expect(yield* llm.calls).toBe(0)
+    }),
+  { git: true },
 )
 
 unixNoLLMServer(

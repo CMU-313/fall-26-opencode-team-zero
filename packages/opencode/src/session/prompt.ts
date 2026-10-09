@@ -1445,6 +1445,38 @@ const layer = Layer.effect(
 
       const raw = commandArguments.match(argsRegex) ?? []
       const args = raw.map((arg) => arg.replace(quoteTrimRegex, ""))
+      if (cmd.maxArguments !== undefined && args.length > cmd.maxArguments) {
+        const error = new NamedError.Unknown({
+          message: `Command "/${cmd.name}" accepts at most ${cmd.maxArguments} argument${cmd.maxArguments === 1 ? "" : "s"}.`,
+        })
+        yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
+        throw error
+      }
+      if (cmd.fileArgument && args[0]) {
+        const ctx = yield* InstanceState.context
+        const root = yield* fsys.resolve(ctx.worktree)
+        const filepath = yield* fsys.resolve(path.isAbsolute(args[0]) ? args[0] : path.resolve(root, args[0]))
+        const relative = path.relative(root, filepath)
+        if (relative.startsWith(`..${path.sep}`) || relative === ".." || path.isAbsolute(relative)) {
+          const error = new NamedError.Unknown({ message: `File must be inside the project: "${args[0]}".` })
+          yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
+          throw error
+        }
+        if (!(yield* fsys.isFile(filepath))) {
+          const error = new NamedError.Unknown({ message: `File not found: "${args[0]}".` })
+          yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
+          throw error
+        }
+        const readable = yield* fsys.access(filepath, { readable: true }).pipe(
+          Effect.as(true),
+          Effect.orElseSucceed(() => false),
+        )
+        if (!readable) {
+          const error = new NamedError.Unknown({ message: `File is not readable: "${args[0]}".` })
+          yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
+          throw error
+        }
+      }
       const templateCommand = yield* Effect.promise(async () => cmd.template)
 
       const placeholders = templateCommand.match(placeholderRegex) ?? []
