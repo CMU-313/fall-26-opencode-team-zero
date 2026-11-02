@@ -19,7 +19,7 @@
 | R6 | C-11, C-12: “You can provide quick summaries on the difference you should expect” | The command should explain what each developer level offers before the user makes a selection | When the developer level selection appears, each option includes a short description explaining what kind of guidance the user will receive. | No | Invariant | packages/opencode/test/command/newcomer.property.test.ts:59 |
 | R7 | O-9: “One thing I would change about my feature is moving from overview to each different module more clearly”  | The command should clearly guide users from the general project overview to individual modules.  | After presenting the project overview, the command identifies major modules and explains where the user should begin exploring each one. | No | Metamorphic | packages/opencode/test/command/newcomer.property.test.ts:72 |
 
-Properties written or suggested by opencode or another AI tool: None
+Properties written or suggested by opencode or another AI tool: Codex (for fc generation ideas)
 
 ## Requirement changes
 
