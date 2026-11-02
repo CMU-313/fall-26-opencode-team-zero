@@ -30,7 +30,7 @@ const verifiedRecommendationRule = fc.constantFrom(
 )
 
 describe("newcomer guide properties", () => {
-  // R1: The /newcomer command must only recommend files and directories that exist in the codebase.
+  // R1: The /newcomer command must only recommend files and directories that exist in the codebase. Otherwise, reject
   // Kind: invariant
   test("R1: recommends only paths that are really in the project", () => {
     fc.assert(
