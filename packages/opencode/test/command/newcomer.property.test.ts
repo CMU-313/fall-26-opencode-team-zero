@@ -41,7 +41,7 @@ describe("newcomer guide properties", () => {
   })
 
   // R4: The command should maintain the same table structure across runs with the same inputs.
-  // Kind: model / oracle
+  // Kind: oracle
   test("R4: keeps the same table layout each time", () => {
     fc.assert(
       fc.property(section, fc.string(), ([heading, columns], preferences) => {
