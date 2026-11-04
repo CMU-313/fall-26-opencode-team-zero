@@ -57,6 +57,11 @@ jobs:
             turbo-${{ runner.os }}-${{ hashFiles('turbo.json', '**/package.json') }}-
             turbo-${{ runner.os }}-
 
+      - name: Run group property tests
+        timeout-minutes: 2
+        working-directory: packages/tui
+        run: bun test test/util/repository-functionality.property.test.ts
+
       - name: Run unit tests
         # The full OpenCode suite is close to ten minutes on CI. Keep a bounded
         # margin for TUI property tests and runner speed variation.
