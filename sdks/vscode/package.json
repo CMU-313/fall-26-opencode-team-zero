@@ -43,12 +43,36 @@
       {
         "command": "opencode.addFilepathToTerminal",
         "title": "Add Filepath to Terminal"
+      },
+      {
+        "command": "opencode.explainSelection",
+        "title": "Explain Selected Code",
+        "category": "opencode",
+        "enablement": "editorHasSelection"
+      },
+      {
+        "command": "opencode.suggestCode",
+        "title": "Suggest Code at Cursor",
+        "category": "opencode",
+        "enablement": "editorTextFocus"
       }
     ],
     "menus": {
       "editor/title": [
         {
           "command": "opencode.openNewTerminal",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "opencode.suggestCode",
+          "when": "editorTextFocus",
+          "group": "navigation"
+        },
+        {
+          "command": "opencode.explainSelection",
+          "when": "editorHasSelection",
           "group": "navigation"
         }
       ]
@@ -77,6 +101,20 @@
         "mac": "cmd+alt+k",
         "win": "ctrl+alt+K",
         "linux": "ctrl+alt+K"
+      },
+      {
+        "command": "opencode.explainSelection",
+        "title": "Explain Selected Code",
+        "key": "ctrl+alt+e",
+        "mac": "cmd+alt+e",
+        "when": "editorHasSelection && editorTextFocus"
+      },
+      {
+        "command": "opencode.suggestCode",
+        "title": "Suggest Code at Cursor",
+        "key": "ctrl+alt+g",
+        "mac": "cmd+alt+g",
+        "when": "editorTextFocus"
       }
     ]
   },

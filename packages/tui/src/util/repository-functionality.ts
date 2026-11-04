@@ -49,6 +49,13 @@ function rank<T extends LearningArea>(areas: T[]) {
   )
 }
 
+function commonDirectory(files: readonly string[]) {
+  const directories = files.map((file) => file.split("/").slice(0, -1))
+  const first = directories[0] ?? []
+  const difference = first.findIndex((part, index) => directories.some((directory) => directory[index] !== part))
+  return first.slice(0, difference < 0 ? first.length : difference).join("/") || "."
+}
+
 function limit<T extends LearningArea>(areas: T[], maximum: number, overflow: (rest: T[]) => T) {
   const ordered = rank(areas)
   if (ordered.length <= maximum) return ordered
@@ -92,6 +99,8 @@ export function analyzeRepositoryGroups(input: readonly string[], referencedFile
       if (referenced.has(file)) subgroup.referencedFiles.push(file)
       subgroups.set(root, subgroup)
     }
+    // Subgroup IDs combine related source and test areas; they are not filesystem paths.
+    for (const subgroup of subgroups.values()) subgroup.root = commonDirectory(subgroup.files)
     group.subgroups = limit([...subgroups.values()], 20, (rest) => ({
       id: `${group.id}/other`,
       title: "Other areas",
@@ -136,7 +145,7 @@ export function applyGroupNames(groups: readonly FunctionalGroup[], response: st
     >
     return groups.map((group) => {
       const title = names[group.id]
-      return typeof title === "string" ? { ...group, title: title.trim().slice(0, 50) } : group
+      return typeof title === "string" && title.trim() ? { ...group, title: title.trim().slice(0, 50) } : group
     })
   } catch {
     return [...groups]

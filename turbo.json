@@ -22,6 +22,10 @@
     //   },
     // Only add the package(s) your change actually touches — don't add all
     // of them, that defeats the point of keeping CI fast.
+    "@opencode-ai/tui#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
     "opencode#test": {
       "dependsOn": ["^build"],
       "outputs": [],

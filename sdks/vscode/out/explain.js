@@ -1,0 +1,52 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.selectedLineRange = selectedLineRange;
+exports.buildExplanationPrompt = buildExplanationPrompt;
+exports.buildCodeSuggestionPrompt = buildCodeSuggestionPrompt;
+function selectedLineRange(input) {
+    const start = input.startLine + 1;
+    const end = input.endCharacter === 0 && input.endLine > input.startLine ? input.endLine : input.endLine + 1;
+    return { start, end };
+}
+function buildExplanationPrompt(input) {
+    const lines = selectedLineRange(input);
+    const range = lines.start === lines.end ? `#L${lines.start}` : `#L${lines.start}-${lines.end}`;
+    const fence = codeFence(input.text);
+    return [
+        "Explain the highlighted code in clear, beginner-friendly language.",
+        "Briefly describe what it does, why it works, and any important inputs, outputs, or side effects.",
+        "Keep that order, use short sentences or bullets, and keep the full explanation under 120 words.",
+        "Avoid unnecessary jargon, and define any technical term you must use. Do not modify any files.",
+        "",
+        `File: @${input.relativePath}${range}`,
+        "",
+        "Highlighted code (including any unsaved changes):",
+        `${fence}${input.languageId}`,
+        input.text,
+        fence,
+    ].join("\n");
+}
+function buildCodeSuggestionPrompt(input) {
+    const fence = codeFence(input.text);
+    return [
+        "Suggest code for the student's current cursor position.",
+        "Use the surrounding code below and inspect other relevant project files with read-only tools if needed.",
+        "Do not modify any files. Return the suggested code first, followed by a clear, beginner-friendly explanation",
+        "of what it does and why it works. Keep the explanation under 120 words and use short sentences or bullets.",
+        "Avoid unnecessary jargon, and define any technical term you must use.",
+        "",
+        `File: @${input.relativePath}#L${input.cursorLine + 1}`,
+        `Cursor: line ${input.cursorLine + 1}, column ${input.cursorCharacter + 1}`,
+        `Context lines: ${input.startLine + 1}-${input.endLine + 1}`,
+        "",
+        "Surrounding code (including any unsaved changes):",
+        `${fence}${input.languageId}`,
+        input.text,
+        fence,
+    ].join("\n");
+}
+function codeFence(text) {
+    const longestFence = Math.max(2, ...Array.from(text.matchAll(/`+/g), (match) => match[0].length));
+    return "`".repeat(longestFence + 1);
+}
+//# sourceMappingURL=explain.js.map

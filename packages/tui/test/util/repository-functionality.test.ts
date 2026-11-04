@@ -7,6 +7,34 @@ import {
 } from "../../src/util/repository-functionality"
 
 describe("repository areas", () => {
+  test("subgroup prompts use a shared real directory instead of the logical group id", () => {
+    const [group] = analyzeRepositoryGroups([
+      "packages/api/src/auth/token.ts",
+      "packages/api/test/auth/token.test.ts",
+    ])
+    const subgroup = group.subgroups[0]
+
+    expect(subgroup.id).toBe("packages/api/auth")
+    expect(subgroup.root).toBe("packages/api")
+    const prompt = buildFunctionalGroupPrompt(subgroup, [group])
+    expect(prompt).toContain("Area root: packages/api\n")
+    expect(prompt).not.toContain("Area root: packages/api/auth")
+    expect(prompt).toContain("packages/api/src/auth/token.ts")
+    expect(prompt).toContain("packages/api/test/auth/token.test.ts")
+  })
+
+  test("subgroup roots preserve nested directories and handle project-root files", () => {
+    const [nested] = analyzeRepositoryGroups(["packages/api/src/auth/token.ts", "packages/api/src/auth/user.ts"])
+    expect(nested.subgroups[0].root).toBe("packages/api/src/auth")
+    const [root] = analyzeRepositoryGroups(["README.md", "LICENSE"])
+    expect(root.subgroups[0].root).toBe(".")
+  })
+
+  test.each(["", "   ", "\t\n"])("retains the structural name for blank model title %j", (title) => {
+    const groups = analyzeRepositoryGroups(["packages/api/src/main.ts"])
+    expect(applyGroupNames(groups, JSON.stringify({ "packages/api": title }))).toEqual(groups)
+  })
+
   test("groups common repository layouts without project-specific names", () => {
     const groups = analyzeRepositoryGroups([
       "packages/api/src/auth/token.ts",
