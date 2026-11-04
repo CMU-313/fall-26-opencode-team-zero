@@ -29,6 +29,8 @@ const env = AppNodeBuilder.build(
 ).pipe(Layer.provideMerge(Logger.layer([logger])))
 const it = testEffect(env)
 
+// external directories are never allowed to be accessed by opencode
+//kind: invariant
 test("R1: external paths are denied even when edits are allowed", () => {
   const ruleset = Permission.fromConfig({ edit: "allow", external_directory: "deny" })
 
@@ -40,6 +42,8 @@ test("R1: external paths are denied even when edits are allowed", () => {
   )
 })
 
+//there will be a record if a command is allowed
+//kind: conditional
 it.instance(
   "R2: allowed commands emit an audit record identifying the command",
   () =>
@@ -76,6 +80,8 @@ it.instance(
   { git: true },
 )
 
+//for every denied command, execution cannot occur and a record must be emitted.
+//kind: invariant
 it.instance(
   "R5: denied commands do not execute and emit an audit record identifying the command",
   () =>
@@ -126,6 +132,8 @@ it.instance(
   { git: true },
 )
 
+//adding a newer rule changes will result in changes to the locations affected. Locations outside of the scope remain unaffected.
+//kind: metamorphic
 test("R6: a newer matching permission overrides an older permission", () => {
   fc.assert(
     fc.property(actions, actions, (older, newer) => {
