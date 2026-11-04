@@ -152,7 +152,7 @@ test("R4: temporary file addition and removal restores the map", () => {
 // R5: Renaming an unread file within its folder preserves its group/subgroup,
 // structural names, counts, and area ordering. File lists remain alphabetical.
 // Kind: Metamorphic (rename changes only the path). Include root-file renames next to a
-// same-title Project root directory group; the explicit example crosses its alphabetical position.
+// same-title Project root directory group. The explicit example crosses its alphabetical position.
 test("R5: a same-folder rename preserves structural placement", () => {
   fc.assert(
     fc.property(distinctNames, workspaceRoot, (names, base) => {

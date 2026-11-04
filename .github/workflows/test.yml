@@ -63,8 +63,6 @@ jobs:
         run: bun test test/util/repository-functionality.property.test.ts
 
       - name: Run unit tests
-        # The full OpenCode suite is close to ten minutes on CI. Keep a bounded
-        # margin for TUI property tests and runner speed variation.
         timeout-minutes: 15
         # Default turbo concurrency (10) oversubscribes ubuntu-latest's 4
         # vCPUs across 5 packages' test tasks running at once — same
