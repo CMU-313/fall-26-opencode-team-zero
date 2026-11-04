@@ -22,7 +22,7 @@ const acceptedPath = fc.oneof(
 )
 
 const distinctNames = fc.uniqueArray(part, { minLength: 2, maxLength: 2 })
-const workspaceRoot = fc.constantFrom("src", "packages/api/src", "apps/web/src")
+const workspaceRoot = fc.constantFrom("", "src", "packages/api/src", "apps/web/src")
 const nonemptyPaths = fc.uniqueArray(acceptedPath, { minLength: 1, maxLength: 70 })
 const workspaceNames = fc.uniqueArray(filename, { minLength: 1, maxLength: 25 })
 
@@ -151,13 +151,17 @@ test("R4: temporary file addition and removal restores the map", () => {
 
 // R5: Renaming an unread file within its folder preserves its group/subgroup,
 // structural names, counts, and area ordering. File lists remain alphabetical.
-// Kind: Metamorphic (rename changes only the path). Distinct names and multiple groups/subgroups reveal side effects.
+// Kind: Metamorphic (rename changes only the path). Include root-file renames next to a
+// same-title Project root directory group; the explicit example crosses its alphabetical position.
 test("R5: a same-folder rename preserves structural placement", () => {
   fc.assert(
     fc.property(distinctNames, workspaceRoot, (names, base) => {
-      const oldPath = `${base}/auth/${names[0]}.ts`
-      const newPath = `${base}/auth/${names[1]}.ts`
-      const input = [oldPath, `${base}/auth/middle.ts`, `${base}/other/keep.ts`, "docs/guide.md"]
+      const prefix = base ? `${base}/auth/` : ""
+      const oldPath = `${prefix}${names[0]}.ts`
+      const newPath = `${prefix}${names[1]}.ts`
+      const input = base
+        ? [oldPath, `${base}/auth/middle.ts`, `${base}/other/keep.ts`, "docs/guide.md"]
+        : [oldPath, "project-root/main.ts"]
       const before = analyzeRepositoryGroups(input)
       const after = analyzeRepositoryGroups(input.map((path) => (path === oldPath ? newPath : path)))
       const expected = before.map((group) => ({
@@ -174,7 +178,7 @@ test("R5: a same-folder rename preserves structural placement", () => {
       expect(after.flatMap((group) => group.referencedFiles)).toEqual([])
       expect(after.flatMap((group) => group.subgroups.flatMap((area) => area.referencedFiles))).toEqual([])
     }),
-    { numRuns: 200 },
+    { numRuns: 200, examples: [[["a", "z"], ""]] },
   )
 })
 

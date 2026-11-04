@@ -45,7 +45,8 @@ function rank<T extends LearningArea>(areas: T[]) {
     (a, b) =>
       b.referencedFiles.length - a.referencedFiles.length ||
       b.files.length - a.files.length ||
-      a.title.localeCompare(b.title),
+      a.title.localeCompare(b.title) ||
+      a.id.localeCompare(b.id),
   )
 }
 
