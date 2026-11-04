@@ -3,7 +3,7 @@ import { AppNodeBuilder } from "@opencode-ai/core/effect/app-node-builder"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { expect, test } from "bun:test"
-import { array, assert, asyncProperty, constantFrom, property, stringMatching } from "fast-check"
+import fc from "fast-check"
 import { Cause, Effect, Exit, Layer, Logger } from "effect"
 import { EffectBridge } from "../../src/effect/bridge"
 import { EventV2Bridge } from "../../src/event-v2-bridge"
@@ -13,13 +13,13 @@ import { InstanceStore } from "../../src/project/instance-store"
 import { SessionID } from "../../src/session/schema"
 import { testEffect } from "../lib/effect"
 
-const commands = array(stringMatching(/^[a-zA-Z0-9._/-]+$/), { minLength: 1, maxLength: 5 }).map((tokens) =>
-  ["git", ...tokens].join(" "),
-)
-const paths = array(stringMatching(/^[a-zA-Z0-9_-]+$/), { minLength: 1, maxLength: 5 }).map(
-  (segments) => `/outside/${segments.join("/")}`,
-)
-const actions = constantFrom<PermissionV1.Action>("allow", "ask", "deny")
+const commands = fc
+  .array(fc.stringMatching(/^[a-zA-Z0-9._/-]+$/), { minLength: 1, maxLength: 5 })
+  .map((tokens) => ["git", ...tokens].join(" "))
+const paths = fc
+  .array(fc.stringMatching(/^[a-zA-Z0-9_-]+$/), { minLength: 1, maxLength: 5 })
+  .map((segments) => `/outside/${segments.join("/")}`)
+const actions = fc.constantFrom<PermissionV1.Action>("allow", "ask", "deny")
 const logs: unknown[] = []
 const logger = Logger.make((options) => logs.push(options.message))
 const noopBootstrap = Layer.succeed(InstanceBootstrap.Service, InstanceBootstrap.Service.of({ run: Effect.void }))
@@ -32,8 +32,8 @@ const it = testEffect(env)
 test("R1: external paths are denied even when edits are allowed", () => {
   const ruleset = Permission.fromConfig({ edit: "allow", external_directory: "deny" })
 
-  assert(
-    property(paths, (target) => {
+  fc.assert(
+    fc.property(paths, (target) => {
       expect(Permission.evaluate("edit", target, ruleset).action).toBe("allow")
       expect(Permission.evaluate("external_directory", target, ruleset).action).toBe("deny")
     }),
@@ -49,8 +49,8 @@ it.instance(
       const bridge = yield* EffectBridge.make()
 
       yield* Effect.promise(() =>
-        assert(
-          asyncProperty(commands, async (command) => {
+        fc.assert(
+          fc.asyncProperty(commands, async (command) => {
             await bridge.promise(
               permission.ask({
                 sessionID: SessionID.make("session_property_allow"),
@@ -86,8 +86,8 @@ it.instance(
       const executed: string[] = []
 
       yield* Effect.promise(() =>
-        assert(
-          asyncProperty(commands, async (command) => {
+        fc.assert(
+          fc.asyncProperty(commands, async (command) => {
             const exit = await bridge.promise(
               permission
                 .ask({
@@ -127,8 +127,8 @@ it.instance(
 )
 
 test("R6: a newer matching permission overrides an older permission", () => {
-  assert(
-    property(actions, actions, (older, newer) => {
+  fc.assert(
+    fc.property(actions, actions, (older, newer) => {
       const ruleset: PermissionV1.Ruleset = [
         { permission: "edit", pattern: "*", action: older },
         { permission: "edit", pattern: "src/*", action: newer },
