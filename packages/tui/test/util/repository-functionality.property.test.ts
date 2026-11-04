@@ -35,7 +35,7 @@ function subgroupFiles(groups: ReturnType<typeof analyzeRepositoryGroups>) {
 }
 
 // R1: Include every file not excluded by R2, even in unfamiliar folders.
-// Kind: model/oracle. Compare both coverage levels to unique input paths, including empty inventories.
+// Kind: Model / oracle (coverage equals unique accepted input paths). Includes empty inventories.
 test("R1: accepted files appear exactly once in groups and subgroups", () => {
   fc.assert(
     fc.property(fc.array(acceptedPath, { maxLength: 80 }), (paths) => {
@@ -56,7 +56,7 @@ test("R1: accepted files appear exactly once in groups and subgroups", () => {
 })
 
 // R1: Include all accepted files even when groups or subgroups overflow.
-// Kind: model/oracle. Distinct directories guarantee group/subgroup boundary coverage.
+// Kind: Model / oracle (overflow preserves all input paths). Distinct directories reach both caps.
 test.each([29, 30, 31, 50])("R1: preserves coverage with %i groups across subgroup boundaries", (count) => {
   fc.assert(
     fc.property(filename, fc.boolean(), (file, read) => {
@@ -80,7 +80,7 @@ test.each([29, 30, 31, 50])("R1: preserves coverage with %i groups across subgro
 })
 
 // R2: Exclude the six ignored directory names, keeping lookalike folders and matching filenames.
-// Kind: invariant. Exercise every ignored name at arbitrary nesting depths.
+// Kind: Invariant (exclude directories, keep matching filenames). Vary ignored names and nesting depths.
 test.each([...excludedDirectories])("R2: excludes the directory %s but keeps matching filenames", (ignored) => {
   fc.assert(
     fc.property(fc.array(part, { maxLength: 5 }), filename, (dirs, file) => {
@@ -101,7 +101,7 @@ test.each([...excludedDirectories])("R2: excludes the directory %s but keeps mat
 
 // R3: Root files belong to Project root. If the 30-group cap combines that group,
 // its files remain in the overflow group's lists and never in a named folder group.
-// Kind: model/oracle. Vary ordinary root names and dotfiles in small repositories.
+// Kind: Model / oracle (root membership equals root input files). Vary ordinary names and dotfiles.
 test("R3: only top-level files belong to Project root in small repositories", () => {
   fc.assert(
     fc.property(fc.uniqueArray(filename, { maxLength: 20 }), fc.uniqueArray(part, { maxLength: 10 }), (names, dirs) => {
@@ -120,7 +120,7 @@ test("R3: only top-level files belong to Project root in small repositories", ()
 
 // R4: Adding and deleting a file restores the deterministic map when other paths
 // and session-referenced paths do not change.
-// Kind: round-trip. Fixed references, existing/new folders, and inventories on both sides of the cap.
+// Kind: Round-trip (add then remove restores the map). Fixed references, existing/new folders, both sides of the cap.
 test("R4: temporary file addition and removal restores the map", () => {
   fc.assert(
     fc.property(part, fc.boolean(), (name, newGroup) => {
@@ -151,7 +151,7 @@ test("R4: temporary file addition and removal restores the map", () => {
 
 // R5: Renaming an unread file within its folder preserves its group/subgroup,
 // structural names, counts, and area ordering. File lists remain alphabetical.
-// Kind: metamorphic. Distinct names and multiple groups/subgroups expose collateral changes.
+// Kind: Metamorphic (rename changes only the path). Distinct names and multiple groups/subgroups reveal side effects.
 test("R5: a same-folder rename preserves structural placement", () => {
   fc.assert(
     fc.property(distinctNames, workspaceRoot, (names, base) => {
@@ -179,7 +179,7 @@ test("R5: a same-folder rename preserves structural placement", () => {
 })
 
 // R6: Repeated discovery must not list a path repeatedly in a group or subgroup.
-// Kind: metamorphic. Always duplicate a path and independently verify complete coverage.
+// Kind: Metamorphic (duplicate input leaves the map unchanged). Always add duplicates and check complete coverage.
 test("R6: duplicate input paths leave the complete map unchanged", () => {
   fc.assert(
     fc.property(nonemptyPaths, fc.integer({ min: 1, max: 10 }), (paths, copies) => {
@@ -197,7 +197,7 @@ test("R6: duplicate input paths leave the complete map unchanged", () => {
 // R7: packages/api and apps/web files belong to their own groups. A group combined
 // by the cap may use the explicitly labeled overflow group, never another named
 // workspace group. Full paths remain findable in group and subgroup file lists.
-// Kind: invariant. Generate both source and test paths under each workspace root.
+// Kind: Invariant (files stay in their workspace). Generate source and test paths under each workspace root.
 test("R7: package and app files stay in their respective groups in small repositories", () => {
   fc.assert(
     fc.property(workspaceNames, workspaceNames, (apiNames, webNames) => {
@@ -219,7 +219,7 @@ test("R7: package and app files stay in their respective groups in small reposit
 })
 
 // R3/R7: Root and workspace files retain ownership, including overflow at the 30-group cap.
-// Kind: invariant. Larger competitors force unread targets into overflow. References retain named groups.
+// Kind: Invariant (ownership survives overflow). Larger competitors force overflow, references retain named groups.
 for (const requirement of ["R3", "R7"]) {
   test.each([29, 30, 31, 50])(`${requirement}: preserves ownership at %i groups`, (count) => {
     fc.assert(
