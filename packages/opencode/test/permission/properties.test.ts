@@ -13,13 +13,17 @@ import { InstanceStore } from "../../src/project/instance-store"
 import { SessionID } from "../../src/session/schema"
 import { testEffect } from "../lib/effect"
 
+//creates tokens randomly with git to test
 const commands = fc
   .array(fc.stringMatching(/^[a-zA-Z0-9._/-]+$/), { minLength: 1, maxLength: 5 })
   .map((tokens) => ["git", ...tokens].join(" "))
+//creates random paths outside the project
 const paths = fc
   .array(fc.stringMatching(/^[a-zA-Z0-9_-]+$/), { minLength: 1, maxLength: 5 })
   .map((segments) => `/outside/${segments.join("/")}`)
+//sets the permissions to allow, ask or deny
 const actions = fc.constantFrom<PermissionV1.Action>("allow", "ask", "deny")
+//creates a log for mocking output
 const logs: unknown[] = []
 const logger = Logger.make((options) => logs.push(options.message))
 const noopBootstrap = Layer.succeed(InstanceBootstrap.Service, InstanceBootstrap.Service.of({ run: Effect.void }))
