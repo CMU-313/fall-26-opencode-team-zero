@@ -1,0 +1,141 @@
+import { PermissionV1 } from "@opencode-ai/core/v1/permission"
+import { AppNodeBuilder } from "@opencode-ai/core/effect/app-node-builder"
+import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import { expect, test } from "bun:test"
+import { array, assert, asyncProperty, constantFrom, property, stringMatching } from "fast-check"
+import { Cause, Effect, Exit, Layer, Logger } from "effect"
+import { EffectBridge } from "../../src/effect/bridge"
+import { EventV2Bridge } from "../../src/event-v2-bridge"
+import { Permission } from "../../src/permission"
+import { InstanceBootstrap } from "../../src/project/bootstrap"
+import { InstanceStore } from "../../src/project/instance-store"
+import { SessionID } from "../../src/session/schema"
+import { testEffect } from "../lib/effect"
+
+const commands = array(stringMatching(/^[a-zA-Z0-9._/-]+$/), { minLength: 1, maxLength: 5 }).map((tokens) =>
+  ["git", ...tokens].join(" "),
+)
+const paths = array(stringMatching(/^[a-zA-Z0-9_-]+$/), { minLength: 1, maxLength: 5 }).map(
+  (segments) => `/outside/${segments.join("/")}`,
+)
+const actions = constantFrom<PermissionV1.Action>("allow", "ask", "deny")
+const logs: unknown[] = []
+const logger = Logger.make((options) => logs.push(options.message))
+const noopBootstrap = Layer.succeed(InstanceBootstrap.Service, InstanceBootstrap.Service.of({ run: Effect.void }))
+const env = AppNodeBuilder.build(
+  LayerNode.group([Permission.node, EventV2Bridge.node, CrossSpawnSpawner.node, InstanceStore.node]),
+  [[InstanceStore.bootstrapNode, noopBootstrap]],
+).pipe(Layer.provideMerge(Logger.layer([logger])))
+const it = testEffect(env)
+
+test("R1: external paths are denied even when edits are allowed", () => {
+  const ruleset = Permission.fromConfig({ edit: "allow", external_directory: "deny" })
+
+  assert(
+    property(paths, (target) => {
+      expect(Permission.evaluate("edit", target, ruleset).action).toBe("allow")
+      expect(Permission.evaluate("external_directory", target, ruleset).action).toBe("deny")
+    }),
+  )
+})
+
+it.instance(
+  "R2: allowed commands emit an audit record identifying the command",
+  () =>
+    Effect.gen(function* () {
+      logs.length = 0
+      const permission = yield* Permission.Service
+      const bridge = yield* EffectBridge.make()
+
+      yield* Effect.promise(() =>
+        assert(
+          asyncProperty(commands, async (command) => {
+            await bridge.promise(
+              permission.ask({
+                sessionID: SessionID.make("session_property_allow"),
+                permission: "bash",
+                patterns: [command],
+                metadata: { command },
+                always: [],
+                ruleset: [{ permission: "bash", pattern: "*", action: "allow" }],
+              }),
+            )
+            expect(logs).toContainEqual([
+              "evaluated",
+              {
+                permission: "bash",
+                pattern: command,
+                action: { permission: "bash", pattern: "*", action: "allow" },
+              },
+            ])
+          }),
+        ),
+      )
+    }),
+  { git: true },
+)
+
+it.instance(
+  "R5: denied commands do not execute and emit an audit record identifying the command",
+  () =>
+    Effect.gen(function* () {
+      logs.length = 0
+      const permission = yield* Permission.Service
+      const bridge = yield* EffectBridge.make()
+      const executed: string[] = []
+
+      yield* Effect.promise(() =>
+        assert(
+          asyncProperty(commands, async (command) => {
+            const exit = await bridge.promise(
+              permission
+                .ask({
+                  sessionID: SessionID.make("session_property_deny"),
+                  permission: "bash",
+                  patterns: [command],
+                  metadata: { command },
+                  always: [],
+                  ruleset: [{ permission: "bash", pattern: "git *", action: "deny" }],
+                })
+                .pipe(
+                  Effect.andThen(
+                    Effect.sync(() => {
+                      executed.push(command)
+                    }),
+                  ),
+                  Effect.exit,
+                ),
+            )
+
+            expect(Exit.isFailure(exit)).toBe(true)
+            if (Exit.isFailure(exit)) expect(Cause.squash(exit.cause)).toBeInstanceOf(PermissionV1.DeniedError)
+            expect(executed).toEqual([])
+            expect(logs).toContainEqual([
+              "evaluated",
+              {
+                permission: "bash",
+                pattern: command,
+                action: { permission: "bash", pattern: "git *", action: "deny" },
+              },
+            ])
+          }),
+        ),
+      )
+    }),
+  { git: true },
+)
+
+test("R6: a newer matching permission overrides an older permission", () => {
+  assert(
+    property(actions, actions, (older, newer) => {
+      const ruleset: PermissionV1.Ruleset = [
+        { permission: "edit", pattern: "*", action: older },
+        { permission: "edit", pattern: "src/*", action: newer },
+      ]
+
+      expect(Permission.evaluate("edit", "src/app.ts", ruleset).action).toBe(newer)
+      expect(Permission.evaluate("edit", "README.md", ruleset).action).toBe(older)
+    }),
+  )
+})
