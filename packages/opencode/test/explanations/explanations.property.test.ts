@@ -75,9 +75,14 @@ mock.module("vscode", () => ({
   Range,
 }))
 
-const { activate } = await import("../../../../sdks/vscode/src/extension")
-// The narrow mock supplies only APIs used by the commands under test.
-activate({ subscriptions: [] } as unknown as Parameters<typeof activate>[0])
+// The SDK is outside the root Bun workspaces and owns its VS Code typecheck.
+// Load it at runtime so opencode's typecheck does not require SDK-only types.
+// This contract describes the mocked host, not the full VS Code context.
+const extensionPath = path.resolve(import.meta.dir, "../../../../sdks/vscode/src/extension.ts")
+const { activate } = (await import(extensionPath)) as {
+  activate(context: { subscriptions: { dispose(): void }[] }): void
+}
+activate({ subscriptions: [] })
 
 function editor(file: string, text: string, start: number, end: number, character: number) {
   const lines = text.split("\n")
