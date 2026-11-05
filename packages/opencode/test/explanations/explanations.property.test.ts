@@ -241,7 +241,8 @@ test("R1: explanation requests preserve selected text verbatim", async () => {
 // Kind: invariant
 // A real earlier helper is OUTSIDE the selection. Padding includes helpers more
 // than 30 lines away, so passing the selected text alone cannot satisfy R2.
-// Expected to fail until the command gathers definitions outside the selection.
+// The saved helper deliberately differs from the editor buffer, so fetching
+// stale context from disk cannot satisfy the property.
 test("R2: explanation requests include earlier called function definitions", async () => {
   await fc.assert(
     fc.asyncProperty(program, async (sample) => {
@@ -252,7 +253,7 @@ test("R2: explanation requests include earlier called function definitions", asy
       const result = await request({
         command: "explainSelection",
         text,
-        saved: text,
+        saved: text.replace(helper, "// stale saved helper definition"),
         other: "",
         start: lines.length - 1,
         end: lines.length - 1,
@@ -260,6 +261,7 @@ test("R2: explanation requests include earlier called function definitions", asy
       })
       expect(result.prompt).toContain(selected)
       expect(result.prompt).toContain(helper)
+      expect(result.prompt).not.toContain("// stale saved helper definition")
     }),
     { numRuns: 100 },
   )
