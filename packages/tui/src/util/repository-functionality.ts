@@ -45,7 +45,8 @@ function rank<T extends LearningArea>(areas: T[]) {
     (a, b) =>
       b.referencedFiles.length - a.referencedFiles.length ||
       b.files.length - a.files.length ||
-      a.title.localeCompare(b.title),
+      a.title.localeCompare(b.title) ||
+      a.id.localeCompare(b.id),
   )
 }
 
@@ -64,7 +65,7 @@ function limit<T extends LearningArea>(areas: T[], maximum: number, overflow: (r
 
 export function analyzeRepositoryGroups(input: readonly string[], referencedFiles: readonly string[] = []) {
   const files = [...new Set(input.map(normalize))]
-    .filter((file) => file && !file.split("/").some((part) => ignored.has(part)))
+    .filter((file) => file && !file.split("/").slice(0, -1).some((part) => ignored.has(part)))
     .sort((a, b) => a.localeCompare(b))
   const referenced = new Set(referencedFiles.map(normalize))
   const groups = new Map<string, FunctionalGroup>()
