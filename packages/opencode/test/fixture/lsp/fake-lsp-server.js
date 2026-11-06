@@ -5,6 +5,7 @@ let readBuffer = Buffer.alloc(0)
 let lastChange = null
 let initializeParams = null
 let diagnosticRequestCount = 0
+const completedDocumentIdentifiers = []
 let registeredCapability = false
 const pendingClientRequests = new Map()
 let pullConfig = {
@@ -71,12 +72,16 @@ function maybeRegister(method) {
   })
 }
 
-function delayed(id, result, delayMs = pullConfig.delayMs) {
+function delayed(id, result, delayMs = pullConfig.delayMs, beforeResponse = () => {}) {
   if (!delayMs) {
+    beforeResponse()
     sendResponse(id, result)
     return
   }
-  setTimeout(() => sendResponse(id, result), delayMs)
+  setTimeout(() => {
+    beforeResponse()
+    sendResponse(id, result)
+  }, delayMs)
 }
 
 function diagnosticsForIdentifier(identifier) {
@@ -174,6 +179,7 @@ function handle(raw) {
   }
 
   if (data.method === "test/configure-pull-diagnostics") {
+    completedDocumentIdentifiers.length = 0
     pullConfig = {
       delayMs: data.params?.delayMs ?? 0,
       registerOn: data.params?.registerOn,
@@ -211,15 +217,22 @@ function handle(raw) {
     return
   }
 
+  if (data.method === "test/get-completed-document-identifiers") {
+    sendResponse(data.id, completedDocumentIdentifiers)
+    return
+  }
+
   if (data.method === "textDocument/diagnostic") {
     diagnosticRequestCount += 1
+    const identifier = data.params?.identifier ?? ""
     delayed(
       data.id,
       {
         kind: "full",
-        items: diagnosticsForIdentifier(data.params?.identifier ?? ""),
+        items: diagnosticsForIdentifier(identifier),
       },
-      documentDelayForIdentifier(data.params?.identifier ?? ""),
+      documentDelayForIdentifier(identifier),
+      () => completedDocumentIdentifiers.push(identifier),
     )
     return
   }

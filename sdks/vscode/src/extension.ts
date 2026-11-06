@@ -66,6 +66,9 @@ export function activate(context: vscode.ExtensionContext) {
       relativePath: vscode.workspace.asRelativePath(document.uri),
       languageId: document.languageId,
       text: document.getText(selection),
+      // Include earlier definitions without language-specific parsing or a line
+      // cutoff. Read the editor buffer so unsaved helper changes are included.
+      context: document.getText(new vscode.Range(0, 0, selection.start.line, selection.start.character)),
       startLine: selection.start.line,
       endLine: selection.end.line,
       endCharacter: selection.end.character,
