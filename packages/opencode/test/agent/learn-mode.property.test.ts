@@ -26,7 +26,7 @@ afterEach(async () => {
   await disposeAllInstances()
 })
 
-it.instance("R1: returning to Learn restores its default permission policy", () =>
+it.instance("R1: every mode switch applies its policy and restores Learn defaults", () =>
   Effect.gen(function* () {
     const agents = yield* Agent.Service
     const learn = yield* agents.get("learn")
@@ -38,12 +38,17 @@ it.instance("R1: returning to Learn restores its default permission policy", () 
     const expected = policy(learn)
     const available = new Map((yield* agents.list()).map((agent) => [agent.name, agent]))
 
-    // Generate long mode-switch histories, including repeated visits to Learn.
+    // Generate long mode-switch histories and check every selection, not only the final mode.
     fc.assert(
-      fc.property(fc.array(fc.constantFrom("build", "plan", "learn"), { maxLength: 100 }), (switches) => {
-        const returnedToLearn = [...switches, "learn"].map((name) => available.get(name)).at(-1)
-        expect(returnedToLearn).toBeDefined()
-        expect(policy(returnedToLearn!)).toEqual(expected)
+      fc.property(fc.array(fc.constantFrom("build", "plan", "learn"), { minLength: 1, maxLength: 100 }), (switches) => {
+        for (const name of switches) {
+          const selected = available.get(name)
+          expect(selected).toBeDefined()
+          expect(Permission.evaluate("edit", "arbitrary/path", selected!.permission).action).toBe(
+            name === "build" ? "allow" : "deny",
+          )
+          if (name === "learn") expect(policy(selected!)).toEqual(expected)
+        }
       }),
     )
   }),
