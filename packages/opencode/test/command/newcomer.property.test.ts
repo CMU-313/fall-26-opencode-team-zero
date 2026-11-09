@@ -71,6 +71,24 @@ describe("newcomer guide properties", () => {
     )
   })
 
+  // R6: Only a real experience level may skip the menu; anything else must show the level choices.
+  // Kind: invariant
+  test("R6: shows the experience menu unless a real level was typed", () => {
+    const whitespace = fc.stringMatching(/^[ \t\n]{0,3}$/)
+    fc.assert(
+      fc.property(level, fc.mixedCase(fc.constantFrom(...levels)), whitespace, whitespace, (expected, typed, before, after) => {
+        expect(Command.newcomerExperience(`${before}${expected}${after}`)).toBe(expected.toLowerCase())
+        expect(Command.newcomerExperience(`${before}${typed}${after}`)).toBe(typed.toLowerCase())
+      }),
+    )
+    fc.assert(
+      fc.property(fc.oneof(whitespace, fc.string()), (typed) => {
+        fc.pre(!levels.some((item) => item.toLowerCase() === typed.trim().toLowerCase()))
+        expect(Command.newcomerExperience(typed)).toBeUndefined()
+      }),
+    )
+  })
+
   // R7: The command should clearly guide users from the general project overview to individual modules.
   // Kind: metamorphic
   test("R7: moves from the overview to places to start", () => {

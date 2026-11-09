@@ -63,6 +63,12 @@ export const NewcomerExperience = [
   { label: "Advanced", description: "Architecture, control flow, abstractions, and tradeoffs" },
 ]
 
+// A level typed after /newcomer skips the experience menu; anything else shows it.
+export function newcomerExperience(input: string) {
+  const requested = input.trim().toLowerCase()
+  return ["beginner", "intermediate", "advanced"].find((item) => item === requested)
+}
+
 export interface Interface {
   readonly get: (name: string) => Effect.Effect<RuntimeInfo | undefined>
   readonly list: () => Effect.Effect<Info[]>

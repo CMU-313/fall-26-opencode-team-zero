@@ -1384,8 +1384,7 @@ const layer = Layer.effect(
         yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
         throw error
       }
-      const requestedExperience = input.arguments.trim().toLowerCase()
-      const experience = ["beginner", "intermediate", "advanced"].find((item) => item === requestedExperience)
+      const experience = Command.newcomerExperience(input.arguments)
       const newcomerAnswers =
         input.command === Command.Default.NEWCOMER
           ? yield* question

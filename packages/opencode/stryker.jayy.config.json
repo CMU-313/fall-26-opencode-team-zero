@@ -1,7 +1,7 @@
 {
   "testRunner": "command",
   "commandRunner": { "command": "bun test test/command/newcomer.property.test.ts" },
-  "mutate": ["src/command/index.ts:60-64", "src/session/prompt.ts:1387-1388"],
+  "mutate": ["src/command/index.ts:60-70"],
   "coverageAnalysis": "off",
   "reporters": ["html", "clear-text", "progress"]
 }
