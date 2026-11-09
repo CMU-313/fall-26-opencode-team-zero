@@ -1,0 +1,13 @@
+diff --git a/packages/opencode/src/session/prompt.ts b/packages/opencode/src/session/prompt.ts
+index 144dc0c..640816a 100644
+--- a/packages/opencode/src/session/prompt.ts
++++ b/packages/opencode/src/session/prompt.ts
+@@ -1399,7 +1399,7 @@ const layer = Layer.effect(
+                           header: "Experience",
+                           question: "What is your experience level?",
+                           options: [
+-                            { label: "Beginner", description: "Plain language and the smallest useful set of files" },
++                            { label: "Beginner", description: "Plain language" },
+                             {
+                               label: "Intermediate",
+                               description: "Development terminology, connections, and conventions",
