@@ -1398,17 +1398,7 @@ const layer = Layer.effect(
                         {
                           header: "Experience",
                           question: "What is your experience level?",
-                          options: [
-                            { label: "Beginner", description: "Plain language and the smallest useful set of files" },
-                            {
-                              label: "Intermediate",
-                              description: "Development terminology, connections, and conventions",
-                            },
-                            {
-                              label: "Advanced",
-                              description: "Architecture, control flow, abstractions, and tradeoffs",
-                            },
-                          ],
+                          options: Command.NewcomerExperience,
                           multiple: false,
                           custom: false,
                         },

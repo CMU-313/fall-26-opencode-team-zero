@@ -56,6 +56,13 @@ export const Default = {
   ASSOCIATE: "associate",
 } as const
 
+// Experience levels offered by /newcomer, each with a short preview of the guidance it gives.
+export const NewcomerExperience = [
+  { label: "Beginner", description: "Plain language and the smallest useful set of files" },
+  { label: "Intermediate", description: "Development terminology, connections, and conventions" },
+  { label: "Advanced", description: "Architecture, control flow, abstractions, and tradeoffs" },
+]
+
 export interface Interface {
   readonly get: (name: string) => Effect.Effect<RuntimeInfo | undefined>
   readonly list: () => Effect.Effect<Info[]>

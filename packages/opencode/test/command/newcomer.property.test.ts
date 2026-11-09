@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import fc from "fast-check"
 import PROMPT_NEWCOMER from "../../src/command/template/newcomer.txt"
+import { Command } from "../../src/command"
 
-const PROMPT_SOURCE = await Bun.file(new URL("../../src/session/prompt.ts", import.meta.url)).text()
+// Fixed seed so Stryker results are reproducible between runs.
+fc.configureGlobal({ seed: 30 })
 
 const levels = ["Beginner", "Intermediate", "Advanced"] as const
 const level = fc.constantFrom(...levels)
@@ -61,10 +63,10 @@ describe("newcomer guide properties", () => {
   test("R6: explains every experience choice", () => {
     fc.assert(
       fc.property(level, (experience) => {
-        const option = new RegExp(`label: "${experience}",\\s+description: "([^"]+)"`).exec(PROMPT_SOURCE)
+        const option = Command.NewcomerExperience.find((item) => item.label === experience)
 
-        expect(option?.[1]).toBeTruthy()
-        expect(option?.[1]?.split(/[, ]+/).filter(Boolean).length).toBeGreaterThanOrEqual(3)
+        expect(option?.description).toBeTruthy()
+        expect(option?.description.split(/[, ]+/).filter(Boolean).length).toBeGreaterThanOrEqual(3)
       }),
     )
   })
