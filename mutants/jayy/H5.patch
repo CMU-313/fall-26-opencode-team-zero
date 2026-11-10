@@ -1,0 +1,12 @@
+diff --git a/packages/opencode/src/command/index.ts b/packages/opencode/src/command/index.ts
+--- a/packages/opencode/src/command/index.ts
++++ b/packages/opencode/src/command/index.ts
+@@ -66,7 +66,7 @@
+ // A level typed after /newcomer skips the experience menu; anything else shows it.
+ export function newcomerExperience(input: string) {
+   const requested = input.trim().toLowerCase()
+-  return ["beginner", "intermediate", "advanced"].find((item) => item === requested)
++  return ["beginner", "intermediate", "advanced"].find((item) => item.startsWith(requested))
+ }
+ 
+ export interface Interface {

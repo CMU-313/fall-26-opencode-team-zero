@@ -64,6 +64,10 @@ jobs:
         # contention issue typecheck.yml already caps for tsgo.
         run: GITHUB_ACTIONS=false bun turbo test --concurrency=4
 
+      - name: Run newcomer property tests
+        working-directory: packages/opencode
+        run: bun test test/command/newcomer.property.test.ts
+
       - name: Run Learn Mode property tests
         working-directory: packages/opencode
         run: bun test test/agent/learn-mode.property.test.ts
