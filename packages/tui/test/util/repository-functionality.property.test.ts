@@ -219,7 +219,7 @@ test("R6: duplicate input paths leave the complete map unchanged", () => {
 // Kind: Invariant (files stay in their workspace). Generate source and test paths under each workspace root.
 test("R7: package and app files stay in their respective groups in small repositories", () => {
   fc.assert(
-    fc.property(workspaceNames, workspaceNames, fc.constantFrom("services", "modules", "apps"), (apiNames, webNames, nested) => {
+    fc.property(workspaceNames, workspaceNames, fc.constantFrom("services", "modules", "apps", "packages"), (apiNames, webNames, nested) => {
       const api = [
         ...apiNames.map((file, i) => `packages/api/${i % 2 ? "test" : "src"}/auth/${file}`),
         `packages/api/src/${nested}/billing.ts`,
