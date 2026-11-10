@@ -1,0 +1,14 @@
+diff --git a/packages/tui/src/util/repository-functionality.ts b/packages/tui/src/util/repository-functionality.ts
+index 34f4d7c..f3f8dd2 100644
+--- a/packages/tui/src/util/repository-functionality.ts
++++ b/packages/tui/src/util/repository-functionality.ts
+@@ -45,8 +45,7 @@ function rank<T extends LearningArea>(areas: T[]) {
+     (a, b) =>
+       b.referencedFiles.length - a.referencedFiles.length ||
+       b.files.length - a.files.length ||
+-      a.title.localeCompare(b.title) ||
+-      a.id.localeCompare(b.id),
++      a.title.localeCompare(b.title),
+   )
+ }
+ 
