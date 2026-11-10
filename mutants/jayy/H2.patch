@@ -1,0 +1,10 @@
+diff --git a/packages/opencode/src/command/template/newcomer.txt b/packages/opencode/src/command/template/newcomer.txt
+index b67b4a6..641f67d 100644
+--- a/packages/opencode/src/command/template/newcomer.txt
++++ b/packages/opencode/src/command/template/newcomer.txt
+@@ -31,4 +31,4 @@ Present a Markdown table with the columns `Task`, `Command`, `Run from`, and `No
+ ## First contribution ideas
+ Present two or three low-risk starter areas in a Markdown table with the columns `Area`, `Why it is approachable`, `Start with`, and `How to verify`. Recommend only areas supported by the repository structure. Prefer isolated documentation, tests, messages, configuration, or small leaf features over core orchestration, generated code, migrations, security-sensitive code, or broad refactors. Do not claim that an issue exists or that a change is needed unless the repository provides evidence.
+ 
+-Match the requested experience level throughout the response. For beginners, use plain language, define necessary technical terms, avoid unexplained jargon, and favor orientation over implementation detail. For intermediate users, use standard development terminology and connect the major implementation pieces. For advanced users, be concise and technically precise, including relevant functions, abstractions, control and data flow, and tradeoffs. At every level, cite real repository paths and distinguish verified facts from reasonable inferences.
++Match the requested experience level throughout the response. For beginners, use plain language, define necessary technical terms, avoid unexplained jargon, and favor orientation over implementation detail. For intermediate users, use standard development terminology and connect the major implementation pieces. For advanced users, be concise and technically precise, including relevant functions, abstractions, control and data flow, and tradeoffs. At every level, cite repository paths and distinguish verified facts from reasonable inferences.

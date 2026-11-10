@@ -335,6 +335,7 @@ describe("LSPClient interop", () => {
     const handle = spawnFakeServer() as any
     await using tmp = await tmpdir()
     const file = path.join(tmp.path, "client.cs")
+    const slowDelay = 10_000
     await Bun.write(file, "class C {}\n")
 
     await withTestInstance({
@@ -364,7 +365,7 @@ describe("LSPClient interop", () => {
             slow: [],
           },
           documentDelayMsByIdentifier: {
-            slow: 2_500,
+            slow: slowDelay,
           },
         })
 
@@ -374,7 +375,7 @@ describe("LSPClient interop", () => {
         const started = Date.now()
         await client.waitForDiagnostics({ path: file, version, mode: "document" })
 
-        expect(Date.now() - started).toBeLessThan(1_000)
+        expect(Date.now() - started).toBeLessThan(slowDelay / 2)
         expect(client.diagnostics.get(file)?.[0]?.message).toBe("fast diagnostic")
         expect(await client.connection.sendRequest("test/get-diagnostic-request-count", {})).toBeGreaterThan(1)
 

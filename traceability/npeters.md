@@ -31,3 +31,12 @@ R6: I used codex to implement the property.
 |R2| When an allowed command is given, the user should be notified. | For every generated valid command evaluated as allow, executing it emits at least one notification/audit event identifying that command| The original requirement was a little vague and hard to make deterministic |
 |R4| There should be an explanation with the command when it asks you if you accept it. |For every generated command evaluated as ask, the permission request contains the complete command and a nonempty explanation | The original requirement was a little vague and hard to make deterministic |
 |R5| When a command is denied, there should be an acknowledgement from the agent of the denial and what was denied | For every generated command evaluated as deny, execution does not occur and a denial event containing the complete command is emitted | The original requirement was a little vague and hard to make deterministic |
+
+##Hand-written Mutants
+| ID | Requirement Targetted | Change | Predicted Killer | Actual Result
+|---|---|---|---|---|
+|H1|R6||||
+|H2|R5||||
+|H3|R2||||
+|H4|R2||||
+|H5|R6||||

@@ -1384,8 +1384,7 @@ const layer = Layer.effect(
         yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
         throw error
       }
-      const requestedExperience = input.arguments.trim().toLowerCase()
-      const experience = ["beginner", "intermediate", "advanced"].find((item) => item === requestedExperience)
+      const experience = Command.newcomerExperience(input.arguments)
       const newcomerAnswers =
         input.command === Command.Default.NEWCOMER
           ? yield* question
@@ -1398,17 +1397,7 @@ const layer = Layer.effect(
                         {
                           header: "Experience",
                           question: "What is your experience level?",
-                          options: [
-                            { label: "Beginner", description: "Plain language and the smallest useful set of files" },
-                            {
-                              label: "Intermediate",
-                              description: "Development terminology, connections, and conventions",
-                            },
-                            {
-                              label: "Advanced",
-                              description: "Architecture, control flow, abstractions, and tradeoffs",
-                            },
-                          ],
+                          options: Command.NewcomerExperience,
                           multiple: false,
                           custom: false,
                         },

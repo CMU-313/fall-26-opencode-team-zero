@@ -68,6 +68,10 @@ jobs:
         working-directory: packages/opencode
         run: bun test test/permission/properties.test.ts
 
+      - name: Run newcomer property tests
+        working-directory: packages/opencode
+        run: bun test test/command/newcomer.property.test.ts
+
       - name: Check generated client
         timeout-minutes: 5
         working-directory: packages/client

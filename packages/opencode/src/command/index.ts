@@ -56,6 +56,19 @@ export const Default = {
   ASSOCIATE: "associate",
 } as const
 
+// Experience levels offered by /newcomer, each with a short preview of the guidance it gives.
+export const NewcomerExperience = [
+  { label: "Beginner", description: "Plain language and the smallest useful set of files" },
+  { label: "Intermediate", description: "Development terminology, connections, and conventions" },
+  { label: "Advanced", description: "Architecture, control flow, abstractions, and tradeoffs" },
+]
+
+// A level typed after /newcomer skips the experience menu; anything else shows it.
+export function newcomerExperience(input: string) {
+  const requested = input.trim().toLowerCase()
+  return ["beginner", "intermediate", "advanced"].find((item) => item === requested)
+}
+
 export interface Interface {
   readonly get: (name: string) => Effect.Effect<RuntimeInfo | undefined>
   readonly list: () => Effect.Effect<Info[]>
