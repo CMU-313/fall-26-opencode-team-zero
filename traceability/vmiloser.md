@@ -37,8 +37,8 @@ Properties written or suggested by Codex: R1, R2, R3, and R4. I reviewed the gen
 ## Hand-written mutants
 | ID | 	Requirement targeted | Change | Predicted Killer | Actual Result |
 |---|---|---|---|---|
-| H1 | R1 | `src/agent/agent.ts`: in Learn’s permission config, add `edit: "allow"` after `"*": "deny"` which would let Learn edit files. | R1 and R3, R1 checks consistent permissions, R3 checks specifically `edit`. | X | 
-| H2 | R2 | `src/agent/agent.ts` add `bash: "allow"` to Learn’s permissions, simulating the develop changing something for convenience. | R2, because it checks all bash commands. | X | 
-| H3 | R3 | `src/agent/agent.ts`: change `websearch: "allow"` to `websearch: "deny"`, which could happen if someone wanted to make a lame attempt at 'sandboxing' the agent | R3, because that is the one that checks read-only ability. | X | 
-| H4 | R4 | `src/agent/agent.ts`: change the `"*" : deny` to `"*" : allow`| R4 and R1, because both check for editing. | X |
-| H5 | R3 | `src/tool/registry.ts:` add WriteTool.id to the readonly set in tools(), exposing the write tool in Learn’s resolved tool catalog even though Learn’s permission policy denies it at execution.| R1, that is the one the checks that nothing could be edited. | X |
+| H1 | R1 | `src/agent/agent.ts`: in Learn’s permission config, add `edit: "allow"` after `"*": "deny"` which would let Learn edit files. | R1 and R3, R1 checks consistent permissions, R3 checks specifically `edit`. | Killed by R1, R3, R4 | 
+| H2 | R2 | `src/agent/agent.ts` add `bash: "allow"` to Learn’s permissions, simulating the develop changing something for convenience. | R2, because it checks all bash commands. | Killed by R2 and R3 | 
+| H3 | R3 | `src/agent/agent.ts`: change `websearch: "allow"` to `websearch: "ask"`, which could happen if someone wanted to make a lame attempt at 'sandboxing' the agent | R3, because that is the one that checks read-only ability. | Killed by R3 | 
+| H4 | R4 | `src/agent/agent.ts`: change the `edit: { "*": "deny" }` to ` edit: { "*": "allow" }`| R4 and R1, because both check for editing. | Killed by R1 and R4. |
+| H5 | R3 | `src/tool/registry.ts:` add WriteTool.id to the readonly set in tools(), exposing the write tool in Learn’s resolved tool catalog even though Learn’s permission policy denies it at execution.| X | All tests pass, the mutant survives. |
