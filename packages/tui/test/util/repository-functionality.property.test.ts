@@ -2,6 +2,8 @@ import { expect, test } from "bun:test"
 import fc from "fast-check"
 import { analyzeRepositoryGroups } from "../../src/util/repository-functionality"
 
+fc.configureGlobal({ seed: 42 })
+
 const excludedDirectories = [".git", "node_modules", "coverage", "dist", "build", ".turbo"] as const
 // Separator-free components include extensionless filenames and names matching excluded directories.
 const part = fc
@@ -55,7 +57,7 @@ test("R1: accepted files appear exactly once in groups and subgroups", () => {
   )
 })
 
-// R1: Include all accepted files even when groups or subgroups overflow.
+// R1/R9: Include all accepted files in overflow and preserve its structural IDs, titles, and roots.
 // Kind: Model / oracle (overflow preserves all input paths). Distinct directories reach both caps.
 test.each([29, 30, 31, 50])("R1: preserves coverage with %i groups across subgroup boundaries", (count) => {
   fc.assert(
@@ -67,6 +69,19 @@ test.each([29, 30, 31, 50])("R1: preserves coverage with %i groups across subgro
         const groups = analyzeRepositoryGroups(paths, read ? paths : [])
         expect(groups).toHaveLength(Math.min(count, 30))
         expect(groups.every((group) => group.subgroups.length <= 20)).toBe(true)
+        if (count > 30) {
+          const overflow = groups.find((group) => group.id === "other-repository-groups")!
+          expect(overflow.title).toBe("Other repository groups")
+          expect(overflow.root).toBe(".")
+          const other = overflow.subgroups.find((area) => area.id === "other-repository-groups/other")!
+          expect(other.title).toBe("Other areas")
+          expect(other.root).toBe(".")
+        }
+        for (const group of groups.filter((item) => item.id !== "other-repository-groups" && areas > 20)) {
+          const other = group.subgroups.find((area) => area.id === group.id + "/other")!
+          expect(other.title).toBe("Other areas")
+          expect(other.root).toBe(group.root)
+        }
         expect(groupFiles(groups).sort()).toEqual([...paths].sort())
         expect(subgroupFiles(groups).sort()).toEqual([...paths].sort())
         expect(groups.flatMap((group) => group.referencedFiles).sort()).toEqual(read ? [...paths].sort() : [])
@@ -257,3 +272,20 @@ for (const requirement of ["R3", "R7"]) {
     )
   })
 }
+
+// R8 (P5-derived): Ordinary directories stay in one top-level group, even when
+// they contain distinct second-level folders. The Stryker survivors exposed this gap.
+// Kind: Invariant (group identity follows the top-level ordinary directory).
+test("R8: ordinary directories stay in their top-level group", () => {
+  fc.assert(
+    fc.property(fc.constantFrom("docs", "mystery", "builder"), distinctNames, filename, (root, names, file) => {
+      const paths = names.map((name) => root + "/" + name + "/" + file)
+      const groups = analyzeRepositoryGroups(paths)
+      expect(groups).toHaveLength(1)
+      expect(groups[0].id).toBe(root)
+      expect(groups[0].root).toBe(root)
+      expect([...groups[0].files].sort()).toEqual([...paths].sort())
+    }),
+    { numRuns: 200, examples: [["docs", ["guides", "notes"], "README.md"]] },
+  )
+})

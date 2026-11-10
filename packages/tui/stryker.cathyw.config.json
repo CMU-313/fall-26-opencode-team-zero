@@ -1,0 +1,19 @@
+{
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test test/util/repository-functionality.property.test.ts"
+  },
+  "mutate": [
+    "src/util/repository-functionality.ts:11-11",
+    "src/util/repository-functionality.ts:29-32",
+    "src/util/repository-functionality.ts:43-50",
+    "src/util/repository-functionality.ts:60-63",
+    "src/util/repository-functionality.ts:67-69",
+    "src/util/repository-functionality.ts:83-85",
+    "src/util/repository-functionality.ts:99-100",
+    "src/util/repository-functionality.ts:105-127"
+  ],
+  "coverageAnalysis": "off",
+  "reporters": ["html", "clear-text", "progress", "json"],
+  "concurrency": 4
+}
