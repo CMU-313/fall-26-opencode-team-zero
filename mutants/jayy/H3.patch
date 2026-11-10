@@ -1,0 +1,12 @@
+diff --git a/packages/opencode/src/command/index.ts b/packages/opencode/src/command/index.ts
+--- a/packages/opencode/src/command/index.ts
++++ b/packages/opencode/src/command/index.ts
+@@ -58,7 +58,7 @@
+ 
+ // Experience levels offered by /newcomer, each with a short preview of the guidance it gives.
+ export const NewcomerExperience = [
+-  { label: "Beginner", description: "Plain language and the smallest useful set of files" },
++  { label: "Beginner", description: "Plain language" },
+   { label: "Intermediate", description: "Development terminology, connections, and conventions" },
+   { label: "Advanced", description: "Architecture, control flow, abstractions, and tradeoffs" },
+ ]

@@ -31,8 +31,12 @@ describe("util.process", () => {
 
   test("aborts a running process", async () => {
     const abort = new AbortController()
-    const started = Date.now()
-    setTimeout(() => abort.abort(), 25)
+    const aborted = new Promise<number>((resolve) =>
+      setTimeout(() => {
+        abort.abort()
+        resolve(Date.now())
+      }, 25),
+    )
 
     const out = await Process.run(node("setInterval(() => {}, 1000)"), {
       abort: abort.signal,
@@ -40,15 +44,19 @@ describe("util.process", () => {
     })
 
     expect(out.code).not.toBe(0)
-    expect(Date.now() - started).toBeLessThan(1000)
+    expect(Date.now() - (await aborted)).toBeLessThan(1000)
   }, 3000)
 
   test("kills after timeout when process ignores terminate signal", async () => {
     if (process.platform === "win32") return
 
     const abort = new AbortController()
-    const started = Date.now()
-    setTimeout(() => abort.abort(), 25)
+    const aborted = new Promise<number>((resolve) =>
+      setTimeout(() => {
+        abort.abort()
+        resolve(Date.now())
+      }, 25),
+    )
 
     const out = await Process.run(node('process.on("SIGTERM", () => {}); setInterval(() => {}, 1000)'), {
       abort: abort.signal,
@@ -57,7 +65,7 @@ describe("util.process", () => {
     })
 
     expect(out.code).not.toBe(0)
-    expect(Date.now() - started).toBeLessThan(1000)
+    expect(Date.now() - (await aborted)).toBeLessThan(1000)
   }, 3000)
 
   test("uses cwd when spawning commands", async () => {
