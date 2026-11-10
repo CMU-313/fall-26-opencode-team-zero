@@ -1,16 +1,22 @@
 import { afterEach, expect } from "bun:test"
+import path from "path"
 import fc from "fast-check"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import { ModelV2 } from "@opencode-ai/core/model"
+import { ProviderV2 } from "@opencode-ai/core/provider"
 import { Effect, Layer } from "effect"
 import { Agent } from "../../src/agent/agent"
 import { Auth } from "../../src/auth"
 import { Config } from "../../src/config/config"
 import { RuntimeFlags } from "../../src/effect/runtime-flags"
+import { InstanceState } from "../../src/effect/instance-state"
 import { Permission } from "../../src/permission"
 import { Plugin } from "../../src/plugin"
 import { Provider } from "../../src/provider/provider"
 import { Skill } from "../../src/skill"
+import { ToolRegistry } from "../../src/tool/registry"
 import { disposeAllInstances } from "../fixture/fixture"
+import { TestConfig } from "../fixture/config"
 import { testEffect } from "../lib/effect"
 
 fc.configureGlobal({ seed: 42 })
@@ -23,6 +29,22 @@ const layer = LayerNode.compile(
 const it = testEffect(layer)
 const allowedLearnPermissions = ["read", "glob", "grep", "webfetch", "websearch"]
 const deniedLearnPermissions = ["edit", "write", "bash", "task", "todowrite", "patch", "execute"]
+const allowedLearnTools = ["read", "glob", "grep", "webfetch", "websearch"]
+const deniedLearnTools = ["bash", "edit", "write", "task", "todowrite", "patch", "execute"]
+const toolIt = testEffect(
+  LayerNode.compile(
+    LayerNode.group([ToolRegistry.node, Agent.node]),
+    [
+      [
+        Config.node,
+        TestConfig.layer({
+          directories: () => InstanceState.directory.pipe(Effect.map((dir) => [path.join(dir, ".opencode")])),
+        }),
+      ],
+      [RuntimeFlags.node, RuntimeFlags.layer()],
+    ],
+  ),
+)
 
 afterEach(async () => {
   await disposeAllInstances()
@@ -86,6 +108,33 @@ it.instance("R3: Learn exposes exactly the read-only permission set", () =>
         expect(Permission.evaluate(permission, path, learn.permission).action).toBe("deny")
       }),
     )
+  }),
+)
+
+toolIt.instance("R3: Learn resolves only its read-only tool catalog", () =>
+  Effect.gen(function* () {
+    const registry = yield* ToolRegistry.Service
+    const learn = yield* (yield* Agent.Service).get("learn")
+    if (!learn) throw new Error("learn agent not found")
+
+    const ids = (yield* registry.tools({
+      providerID: ProviderV2.ID.opencode,
+      modelID: ModelV2.ID.make("test"),
+      agent: learn,
+      readOnly: true,
+    })).map((tool) => tool.id)
+
+    fc.assert(
+      fc.property(fc.constantFrom(...allowedLearnTools), (id) => {
+        expect(ids).toContain(id)
+      }),
+    )
+    fc.assert(
+      fc.property(fc.constantFrom(...deniedLearnTools), (id) => {
+        expect(ids).not.toContain(id)
+      }),
+    )
+    expect(ids).toHaveLength(allowedLearnTools.length)
   }),
 )
 
