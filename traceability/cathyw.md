@@ -44,3 +44,16 @@ The properties include extensionless filenames, ignored-directory names used as 
 Local validation after both code fixes: the 24 property tests and 29 existing grouping tests pass (53 total, zero failures). The TUI package type check also passes. Before the fix, all six ignored-name regression properties failed, confirming that these tests detect the bug. The focused `Run group property tests` CI step prints each property name, followed by the complete unit suite. CI must pass for the final submitted commit. A passing run for an earlier commit does not verify these revisions.
 
 These checks compare both file lists with the expected paths and compare the full map after a rename, duplication, or add/remove operation. They catch missing files, repeated entries, incorrect placement, and unexpected ordering changes. Explicit examples caught both code bugs before the fixes. The existing grouping tests also check behavior outside these properties. These checks cover the declared grouping scope, not model-generated names or the full interactive UI.
+
+
+## Hand-written mutants
+
+These predictions were recorded before applying or running any of the hand-written mutants. Each patch will be saved separately under `mutants/cathyw/`.
+
+| ID | Requirement targeted | Planned change | Predicted killer | Actual result |
+|----|----------------------|----------------|------------------|---------------|
+| H1 | R2 | Remove `build` from the ignored-directory set, so files inside `build/` appear in the map. | The R2 property should kill it because its inventories include ignored directories and assert that their files are absent. | Not run yet |
+| H2 | R6 | Remove input-path deduplication before building groups, so repeated paths appear more than once. | The R6 duplicate-input property should kill it because it compares the complete maps before and after adding copies of a path. | Not run yet |
+| H3 | R5 | Remove the final group-ID comparison from ranking, so equal-title, equal-size groups can change order after a same-folder rename. | The R5 rename property should kill it because it compares group order before and after renaming, including a same-title counterexample. | Not run yet |
+| H4 | R1 | Start the overflow slice one position too late, dropping a group and its files when the group limit is exceeded. | The R1 coverage property should kill it because every accepted input path must remain present. The R3 and R7 overflow properties may also kill it. | Not run yet |
+| H5 | R7 | Group workspace files by only their first directory (`packages` or `apps`) instead of their two-directory workspace root. | The R7 ownership property should kill it because files from distinct workspaces would be placed together. | Not run yet |
