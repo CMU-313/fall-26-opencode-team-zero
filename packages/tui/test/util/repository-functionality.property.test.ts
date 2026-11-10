@@ -98,10 +98,10 @@ test.each([29, 30, 31, 50])("R1: preserves coverage with %i groups across subgro
 // Kind: Invariant (exclude directories, keep matching filenames). Vary ignored names and nesting depths.
 test.each([...excludedDirectories])("R2: excludes the directory %s but keeps matching filenames", (ignored) => {
   fc.assert(
-    fc.property(fc.array(part, { maxLength: 5 }), filename, (dirs, file) => {
+    fc.property(fc.array(part, { maxLength: 5 }), filename, fc.constantFrom("a", "x"), (dirs, file, dot) => {
       const prefix = dirs.length ? `${dirs.join("/")}/` : ""
       const hidden = `${prefix}${ignored}/${file}`
-      const lookalike = `${prefix}${ignored}er/${file}`
+      const lookalike = `${prefix}${ignored.startsWith(".") ? dot + ignored.slice(1) : ignored + "er"}/${file}`
       const matchingFile = `${prefix}${ignored}`
       const paths = [hidden, lookalike, matchingFile]
       const groups = analyzeRepositoryGroups(paths, paths)
@@ -110,7 +110,7 @@ test.each([...excludedDirectories])("R2: excludes the directory %s but keeps mat
       expect(subgroupFiles(groups).sort()).toEqual(expected)
       expect(groups.flatMap((group) => group.referencedFiles).sort()).toEqual(expected)
     }),
-    { numRuns: 200, examples: [[[], "main.ts"]] },
+    { numRuns: 200, examples: [[[], "main.ts", "a"]] },
   )
 })
 
@@ -198,13 +198,13 @@ test("R5: a same-folder rename preserves structural placement", () => {
 })
 
 // R6: Repeated discovery must not list a path repeatedly in a group or subgroup.
-// Kind: Metamorphic (duplicate input leaves the map unchanged). Always add duplicates and check complete coverage.
+// Kind: Metamorphic (duplicate input leaves the map unchanged). Check equivalent spellings after normalization.
 test("R6: duplicate input paths leave the complete map unchanged", () => {
   fc.assert(
-    fc.property(nonemptyPaths, fc.integer({ min: 1, max: 10 }), (paths, copies) => {
+    fc.property(nonemptyPaths, fc.integer({ min: 1, max: 10 }), fc.constantFrom("./", ".\\"), (paths, copies, prefix) => {
       const repeated = paths[0]
       const expected = analyzeRepositoryGroups(paths, [repeated])
-      const actual = analyzeRepositoryGroups([...paths, ...Array(copies).fill(repeated)], [repeated])
+      const actual = analyzeRepositoryGroups([...paths, ...Array(copies).fill(prefix + repeated)], [repeated])
       expect(actual).toEqual(expected)
       expect(groupFiles(actual).sort()).toEqual([...paths].sort())
       expect(subgroupFiles(actual).sort()).toEqual([...paths].sort())
@@ -219,8 +219,11 @@ test("R6: duplicate input paths leave the complete map unchanged", () => {
 // Kind: Invariant (files stay in their workspace). Generate source and test paths under each workspace root.
 test("R7: package and app files stay in their respective groups in small repositories", () => {
   fc.assert(
-    fc.property(workspaceNames, workspaceNames, (apiNames, webNames) => {
-      const api = apiNames.map((file, i) => `packages/api/${i % 2 ? "test" : "src"}/auth/${file}`)
+    fc.property(workspaceNames, workspaceNames, fc.constantFrom("services", "modules", "apps"), (apiNames, webNames, nested) => {
+      const api = [
+        ...apiNames.map((file, i) => `packages/api/${i % 2 ? "test" : "src"}/auth/${file}`),
+        `packages/api/src/${nested}/billing.ts`,
+      ]
       const web = webNames.map((file, i) => `apps/web/${i % 2 ? "test" : "src"}/pages/${file}`)
       const groups = analyzeRepositoryGroups([...api, ...web])
       expect(groups).toHaveLength(2)
