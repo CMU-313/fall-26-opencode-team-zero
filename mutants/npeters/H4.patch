@@ -1,0 +1,22 @@
+diff --git a/packages/opencode/src/permission/index.ts b/packages/opencode/src/permission/index.ts
+--- a/packages/opencode/src/permission/index.ts
++++ b/packages/opencode/src/permission/index.ts
+@@ -112,11 +112,13 @@
+       if (!existing) return yield* new PermissionV1.NotFoundError({ requestID: input.requestID })
+ 
+       pending.delete(input.requestID)
+-      yield* events.publish(Event.Replied, {
+-        sessionID: existing.info.sessionID,
+-        requestID: existing.info.id,
+-        reply: input.reply,
+-      })
++      if (input.reply === "reject") {
++        yield* events.publish(Event.Replied, {
++          sessionID: existing.info.sessionID,
++          requestID: existing.info.id,
++          reply: input.reply,
++        })
++      }
+ 
+       if (input.reply === "reject") {
+         yield* Deferred.fail(
