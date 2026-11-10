@@ -1,0 +1,20 @@
+diff --git a/packages/opencode/src/cli/cmd/report.ts b/packages/opencode/src/cli/cmd/report.ts
+--- a/packages/opencode/src/cli/cmd/report.ts
++++ b/packages/opencode/src/cli/cmd/report.ts
+@@ -25,8 +25,14 @@ export const ReportCommand = effectCmd({
+         sessionID: args.session ? SessionV2.ID.make(args.session) : undefined,
+       })
+       .pipe(
+-        Effect.catchTag("EditDecision.SessionNotFoundError", (e) =>
+-          fail(`Session not found in this project: ${e.sessionID}`),
++        Effect.catchTag("EditDecision.SessionNotFoundError", () =>
++          Effect.succeed({
++            sessions: 0,
++            proposed: 0,
++            accepted: 0,
++            rejected: 0,
++            acceptRatio: 0,
++          }),
+         ),
+       )
+     if (summary.proposed === 0) {

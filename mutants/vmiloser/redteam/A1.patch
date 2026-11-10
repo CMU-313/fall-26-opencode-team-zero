@@ -1,0 +1,19 @@
+diff --git a/packages/core/src/permission/decision.ts b/packages/core/src/permission/decision.ts
+--- a/packages/core/src/permission/decision.ts
++++ b/packages/core/src/permission/decision.ts
+@@ -1,6 +1,6 @@
+ export * as EditDecision from "./decision"
+ 
+-import { and, countDistinct, eq, sql } from "drizzle-orm"
++import { and, count, eq, sql } from "drizzle-orm"
+ import { Context, Effect, Layer, Schema } from "effect"
+ import { Database } from "../database/database"
+ import { makeGlobalNode } from "../effect/app-node"
+@@ -119,5 +119,5 @@ const layer = Layer.effect(
+       const row = yield* db
+         .select({
+-          sessions: countDistinct(EditDecisionTable.session_id),
++          sessions: count(EditDecisionTable.session_id),
+           accepted: sql<number>`coalesce(sum(${EditDecisionTable.decision} = 'accepted'), 0)`,
+           rejected: sql<number>`coalesce(sum(${EditDecisionTable.decision} = 'rejected'), 0)`,
+         })
