@@ -13,6 +13,8 @@ import { Skill } from "../../src/skill"
 import { disposeAllInstances } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
+fc.configureGlobal({ seed: 42 })
+
 const layer = LayerNode.compile(
   LayerNode.group([Agent.node, Plugin.node, Provider.node, Auth.node, Config.node, Skill.node, RuntimeFlags.node]),
   [[RuntimeFlags.node, RuntimeFlags.layer()]],

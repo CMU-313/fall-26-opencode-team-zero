@@ -42,3 +42,20 @@ Properties written or suggested by Codex: R1, R2, R3, and R4. I reviewed the gen
 | H3 | R3 | `src/agent/agent.ts`: change `websearch: "allow"` to `websearch: "ask"`, which could happen if someone wanted to make a lame attempt at 'sandboxing' the agent | R3, because that is the one that checks read-only ability. | Killed by R3 | 
 | H4 | R4 | `src/agent/agent.ts`: change the `edit: { "*": "deny" }` to ` edit: { "*": "allow" }`| R4 and R1, because both check for editing. | Killed by R1 and R4. |
 | H5 | R3 | `src/tool/registry.ts:` add WriteTool.id to the readonly set in tools(), exposing the write tool in Learn’s resolved tool catalog even though Learn’s permission policy denies it at execution.| X | All tests pass, the mutant survives. |
+
+
+
+
+## Stryker comparison
+
+**Configuration:** `packages/opencode/stryker.vmiloser.config.json`  
+**Property test command:** `bun test test/agent/learn-mode.property.test.ts`  
+**fast-check seed:** `42`
+
+Stryker mutated the Build default permission, Plan's catch-all edit policy, and Learn's permission policy in `src/agent/agent.ts`. The final run tested 8 mutants: 8 were killed, 0 survived, and 0 timed out. Stryker reported a mutation score of **100.00%**. I claim no equivalent mutants, so the score with equivalent mutants excluded is also **100.00%**.
+
+Stryker did not generate my hand-written H1 or H2 exactly because those mutants add new permission keys (`edit` and `bash`) to the Learn policy. Its generated mutations modify existing syntax rather than inventing a new configuration entry. It also did not generate H5 because H5 changes `src/tool/registry.ts`, which I deliberately excluded from the Stryker scope because the original property file does not exercise tool resolution.
+
+There were no survivors in the final scoped run. During an earlier, broader run, Stryker produced survivors in the unrelated `doom_loop` policy and in Plan-mode special path exceptions. Those changes are not covered by my Learn-mode requirements or current property contract, so I narrowed the final Stryker scope to the permission decisions covered by R1–R4.
+
+Hand-written mutation testing found a structural, cross-file failure that automatic mutation testing did not: H5 exposed the Write tool through Learn's resolved tool catalog while preserving the permission-policy assertions. Stryker systematically tested small mutations to the scoped permission-policy lines and confirmed that the properties kill all of them. The approaches complement each other: hand-written mutants target realistic, requirement-specific design mistakes, while Stryker efficiently explores many local syntax changes.
