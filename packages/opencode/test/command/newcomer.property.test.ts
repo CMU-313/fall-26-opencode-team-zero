@@ -29,7 +29,12 @@ const verifiedRecommendationRule = fc.constantFrom(
   "cite real repository paths",
   "Only describe relationships verified from the code",
   "Recommend only areas supported by the repository structure",
+  // Added after red team RT2 (Leo Liu): missing categories must say so instead of guessing a path.
+  "use `Not found` when a category does not exist",
 )
+
+// Added after red team RT3 (Leo Liu): wording that would let the model reorder the guide sections.
+const reorderingPermission = fc.constantFrom("whatever order", "any order", "reorder", "different order")
 
 describe("newcomer guide properties", () => {
   // R1: The /newcomer command must reject recommendations for files or directories that do not exist in the codebase.
@@ -110,6 +115,11 @@ describe("newcomer guide properties", () => {
         )
         expect(guide).toContain("Add other project-specific rows")
         expect(guide).toContain("most important entry-point files in a useful reading order")
+      }),
+    )
+    fc.assert(
+      fc.property(reorderingPermission, (phrase) => {
+        expect(PROMPT_NEWCOMER.toLowerCase()).not.toContain(phrase)
       }),
     )
   })
