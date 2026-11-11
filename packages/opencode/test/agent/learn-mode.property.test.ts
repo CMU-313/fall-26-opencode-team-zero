@@ -21,10 +21,11 @@ import { testEffect } from "../lib/effect"
 
 fc.configureGlobal({ seed: 42 })
 
-const layer = LayerNode.compile(
-  LayerNode.group([Agent.node, Plugin.node, Provider.node, Auth.node, Config.node, Skill.node, RuntimeFlags.node]),
-  [[RuntimeFlags.node, RuntimeFlags.layer()]],
+const agentNodes = LayerNode.group(
+  [Agent.node, Plugin.node, Provider.node, Auth.node, Config.node, Skill.node, RuntimeFlags.node],
 )
+
+const layer = LayerNode.compile(agentNodes, [[RuntimeFlags.node, RuntimeFlags.layer()]])
 
 const it = testEffect(layer)
 const allowedLearnPermissions = ["read", "glob", "grep", "webfetch", "websearch"]
@@ -44,6 +45,17 @@ const toolIt = testEffect(
       [RuntimeFlags.node, RuntimeFlags.layer()],
     ],
   ),
+)
+const configuredIt = testEffect(
+  LayerNode.compile(agentNodes, [
+    [RuntimeFlags.node, RuntimeFlags.layer()],
+    [
+      Config.node,
+      TestConfig.layer({
+        get: () => Effect.succeed({ permission: { edit: "allow", write: "allow", bash: "allow" } }),
+      }),
+    ],
+  ]),
 )
 
 afterEach(async () => {
@@ -108,6 +120,16 @@ it.instance("R3: Learn exposes exactly the read-only permission set", () =>
         expect(Permission.evaluate(permission, path, learn.permission).action).toBe("deny")
       }),
     )
+    fc.assert(
+      fc.property(
+        fc
+          .array(fc.constantFrom(..."abcdefghijklmnopqrstuvwxyz0123456789"), { minLength: 1, maxLength: 50 })
+          .map((name) => path.join(".opencode", "notes", `${name.join("")}.md`)),
+        (notesPath) => {
+          expect(Permission.evaluate("edit", notesPath, learn.permission).action).toBe("deny")
+        },
+      ),
+    )
   }),
 )
 
@@ -135,6 +157,19 @@ toolIt.instance("R3: Learn resolves only its read-only tool catalog", () =>
       }),
     )
     expect(ids).toHaveLength(allowedLearnTools.length)
+  }),
+)
+
+configuredIt.instance("R1: Learn ignores global user permission overrides", () =>
+  Effect.gen(function* () {
+    const learn = yield* (yield* Agent.Service).get("learn")
+    if (!learn) throw new Error("learn agent not found")
+
+    fc.assert(
+      fc.property(fc.constantFrom("edit", "write", "bash"), (permission) => {
+        expect(Permission.evaluate(permission, "arbitrary/path", learn.permission).action).toBe("deny")
+      }),
+    )
   }),
 )
 
