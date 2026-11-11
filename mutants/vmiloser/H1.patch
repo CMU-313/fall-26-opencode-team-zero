@@ -1,0 +1,10 @@
+diff --git a/packages/opencode/src/agent/agent.ts b/packages/opencode/src/agent/agent.ts
+--- a/packages/opencode/src/agent/agent.ts
++++ b/packages/opencode/src/agent/agent.ts
+@@ -187,5 +187,6 @@
+               Permission.fromConfig({
+                 "*": "deny",
++                edit: "allow",
+                 read: "allow",
+                 glob: "allow",
+                 grep: "allow",

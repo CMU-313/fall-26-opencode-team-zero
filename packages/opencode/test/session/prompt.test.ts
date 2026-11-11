@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { expect } from "bun:test"
 import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer } from "effect"
+import fc from "fast-check"
 import path from "path"
 import { symlink } from "fs/promises"
 import { fileURLToPath } from "url"
@@ -1545,6 +1546,39 @@ noLLMServer.instance("learn mode blocks direct shell commands before they execut
 
     expect(Exit.isFailure(exit)).toBe(true)
     expect(yield* Effect.promise(() => Bun.file(marker).exists())).toBe(false)
+  }),
+)
+
+noLLMServer.instance("R2: Learn blocks generated git-prefixed shell payloads before they execute", () =>
+  Effect.gen(function* () {
+    const { directory } = yield* TestInstance
+    const { prompt, chat } = yield* boot()
+
+    yield* Effect.promise(() =>
+      fc.assert(
+        fc.asyncProperty(
+          fc.constantFrom("status", "diff", "log"),
+          fc.array(fc.constantFrom(..."abcdefghijklmnopqrstuvwxyz0123456789"), { minLength: 1, maxLength: 20 }),
+          async (subcommand, suffix) => {
+            const marker = path.join(directory, `.learn-shell-probe-${suffix.join("")}`)
+            const exit = await Effect.runPromise(
+              prompt.shell({ sessionID: chat.id, agent: "learn", command: `git ${subcommand}; : > ${marker}` }).pipe(Effect.exit),
+            )
+
+            expect(Exit.isFailure(exit)).toBe(true)
+            if (Exit.isFailure(exit)) {
+              const error = Cause.squash(exit.cause)
+              expect(NamedError.Unknown.isInstance(error)).toBe(true)
+              if (NamedError.Unknown.isInstance(error)) {
+                expect(error.data.message).toBe("Learn mode does not allow shell commands.")
+              }
+            }
+            expect(await Bun.file(marker).exists()).toBe(false)
+          },
+        ),
+        { seed: 42 },
+      ),
+    )
   }),
 )
 
