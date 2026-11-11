@@ -13,6 +13,8 @@ import { InstanceStore } from "../../src/project/instance-store"
 import { SessionID } from "../../src/session/schema"
 import { testEffect } from "../lib/effect"
 
+fc.configureGlobal({ seed: 42 })
+
 //creates tokens randomly with git to test
 const commands = fc
   .array(fc.stringMatching(/^[a-zA-Z0-9._/-]+$/), { minLength: 1, maxLength: 5 })
