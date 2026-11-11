@@ -5,6 +5,9 @@ main/packages/opencode/src/permission (folder)
 main/packages/opencode/src/util/wildcard.ts
 main/packages/opencode/test/permission/properties.test.ts
 
+The mutants live in
+mutants/npeters
+
 ## Requirements
 
 | ID | Interview evidence | Requirement | Acceptance Criteria | Changed in P4? | Property (kind) | Test | Mutants it Kills |
@@ -46,26 +49,19 @@ Each patch was applied individually and tested from `packages/opencode` with `bu
 ## Stryker comparison
 
 - fast-check seed: 42
-- Initial mutation score: 70% (28 out of 40 mutants killed, 12 survived). Most of the 
+- Initial mutation score: 70% (28 out of 40 mutants killed, 12 survived).
 
-Mutation scope is `src/permission/index.ts:28-39` for rule evaluation, `:72-85` for permission decisions and logging, and `:186-198` for configuration conversion. Approval replies and the external directory guard are outside this automatic run.
+**1) Which of your hand-written mutants did Stryker never generate? Why not?**
+Stryker never generated any of my handwritten mutants. H4 and H5 were not generated because they were outside of the scope stryker was given. H1 was not generated because it did not generate a complete reversal of precedence, only removed the rules entirely or how they were evaluated like && to ||. H2 was not generated because stryker removed logging entirely while h2 only suppressed denials. H3 had a similar issue to H2 in that allows was specifically tested rather than logging in general.
 
-| Generated mutants | Killed | Survived | Timed out | Errors | Mutation score |
-|---|---|---|---|---|---|
-| 40 | 28 | 12 | 0 | 0 | 70.00% |
+**2)Which Stryker survivors would you never have thought of? Are any of them bugs a real developer might plausibly write?**
+I would never have thought of adding "stryker was here" into an empty array when it was initialized and setting an if statement to always true. They are bugs a developer might plausibly write because sometimes they might not work methodically when writing code at every moment. They might have to stop and come back at a later time. They could also leave artifacts on accident due to fast typing. The string is just a more obvious example.
 
-The completed run took 7 minutes 59 seconds. The initial automatic 11-worker attempt timed out its first batch and was interrupted. The completed run used two workers and `timeoutMS: 60000`. The fixed-seed baseline passed before mutation. The saved [HTML report](../mutants/npeters/mutation.html) contains the individual results.
+**3)What does each approach find that the other doesn't?**
+The handwritten approach will often find mistakes in the implementation at the boundaries and can test expected behaviors thoroughly. Stryker will cast a wider net to help find the unexpected behaviors. These can provide jumping off points for finding more properties to test.
 
-The hand-written results were three killed and two survived (60%). Stryker killed changes to the matching predicate, removal of the evaluation log, and changes to the allow/deny branches. These overlap the rule precedence and audit behavior exercised by H1–H3, although Stryker did not generate those exact hand-written edits. H4 changes approval replies and H5 changes the external directory guard, so neither edit was included in the automatic mutation scope.
+## Strengthening
 
-The 12 automatic survivors show these limits of the current properties:
 
-- Three change the fallback rule or its fields. Every generated evaluation matches an explicit rule, so default asking remains untested.
-- Three skip asking for permission. R2 and R5 generate allow and deny rules, so neither property enters the pending request path.
-- Two change the ruleset attached to DeniedError. R5 checks the error class and audit log, but does not assert the error's ruleset.
-- Three change nested configuration conversion. R1 uses string-valued configuration, and R6 constructs its rules directly.
-- One inserts an extra initial ruleset entry. The later matching rules still produce the expected decisions, and the properties do not check the complete converted ruleset.
-
-Because coverage analysis is off, the report's zero no-coverage count does not establish that every branch was exercised.
-
-Validation also included `bun typecheck` from `packages/opencode`. It failed on pre-existing merge-conflict markers in `test/util/process.test.ts` at lines 47, 49, and 51.
+## Ignored
+There are not fully equivalent mutants. 
