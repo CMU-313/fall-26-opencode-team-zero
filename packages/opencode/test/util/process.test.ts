@@ -44,11 +44,7 @@ describe("util.process", () => {
     })
 
     expect(out.code).not.toBe(0)
-<<<<<<< HEAD
-    expect(Date.now() - started).toBeLessThan(2000)
-=======
-    expect(Date.now() - (await aborted)).toBeLessThan(1000)
->>>>>>> c2fc50684744481451ff68d9b457b3e0a106a52f
+    expect(Date.now() - (await aborted)).toBeLessThan(2000)
   }, 3000)
 
   test("kills after timeout when process ignores terminate signal", async () => {

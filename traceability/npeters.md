@@ -45,7 +45,8 @@ Each patch was applied individually and tested from `packages/opencode` with `bu
 
 ## Stryker comparison
 
-The property tests use a fixed fast-check seed of `42` through `fc.configureGlobal({ seed: 42 })`. The run used Stryker 10.1.1 with [my configuration](../packages/opencode/stryker.npeters.config.json). From `packages/opencode`, run `bunx stryker run stryker.npeters.config.json`. Its command runner executes only `bun test test/permission/properties.test.ts --timeout 30000`.
+- fast-check seed: 42
+- Initial mutation score: 70% (28 out of 40 mutants killed, 12 survived). Most of the 
 
 Mutation scope is `src/permission/index.ts:28-39` for rule evaluation, `:72-85` for permission decisions and logging, and `:186-198` for configuration conversion. Approval replies and the external directory guard are outside this automatic run.
 
