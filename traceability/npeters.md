@@ -80,10 +80,10 @@ No mutants were ignored or excluded as equivalent.
 
 ## Agent Failure Case
 - Transcript Excerpt:
-    - Prompt: add a fast-check property test for agent permissions in traceability/npeters.md R2. Put the new property test in a new file main/packages/opencode/test/permission/properties-opencode.test.ts
+    - Prompt: add a fast-check property test for agent permissions in traceability/npeters.md R2. Put the new property test in a new file main/packages/opencode/test/permission/properties-opencode.test.ts. Do not inspect properties.test.ts.
     - Response: /workspaces/fall-26-opencode-team-zero/traceability/npeters-opencode-gen.png
 I was unable to copy the session to clipboard possibly because I use a mac.
 
-- surviving mutant:
-- why the property was too weak:
-- strengthened version and evidence:
+- surviving mutant: H6 survived (with 1 pass and 0 fail) the opencode written test in properties-opencode.test.ts.
+- why the property was too weak: it only checked that there was an emission to the log for an allowed command, but failed to account for the name of the specific rule matching the log. When everything is reported the same there is no difference in the reaction to the reported output.
+- strengthened version and evidence: 
