@@ -1,0 +1,21 @@
+{
+
+  "ignorePatterns": [
+  "packages/console/app/public/email",
+  "sdks/vscode/.vscode-test/**"
+  ],
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "cd packages/opencode && bun test test/explanations/explanations.property.test.ts test/suggestions/suggestions.property.test.ts"
+  },
+  "mutate": [
+    "sdks/vscode/src/explain.ts:27-79",
+    "sdks/vscode/src/extension.ts:65-110"
+  ],
+  "coverageAnalysis": "off",
+  "concurrency": 2,
+  "reporters": ["html", "clear-text", "progress"],
+  "htmlReporter": {
+    "fileName": "reports/mutation/jannaanl.html"
+  }
+}
