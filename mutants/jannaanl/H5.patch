@@ -1,0 +1,13 @@
+diff --git a/sdks/vscode/src/explain.ts b/sdks/vscode/src/explain.ts
+index 844c6a3..0b3da2e 100644
+--- a/sdks/vscode/src/explain.ts
++++ b/sdks/vscode/src/explain.ts
+@@ -48,7 +48,7 @@ export function buildExplanationPrompt(input: SelectionLocation) {
+       : []),
+     "Highlighted code (including any unsaved changes):",
+     `${fence}${input.languageId}`,
+-    input.text,
++    input.text.trim(),
+     fence,
+   ].join("\n")
+ }

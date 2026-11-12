@@ -1,4 +1,5 @@
 export type SelectionLocation = {
+  context?: string
   relativePath: string
   languageId: string
   text: string
@@ -36,6 +37,15 @@ export function buildExplanationPrompt(input: SelectionLocation) {
     "",
     `File: @${input.relativePath}${range}`,
     "",
+    ...(input.context
+      ? [
+          "Earlier code in the same file (context only, including any unsaved changes):",
+          `${codeFence(input.context)}${input.languageId}`,
+          input.context,
+          codeFence(input.context),
+          "",
+        ]
+      : []),
     "Highlighted code (including any unsaved changes):",
     `${fence}${input.languageId}`,
     input.text,

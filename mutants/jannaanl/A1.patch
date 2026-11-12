@@ -1,0 +1,60 @@
+diff --git a/packages/opencode/test/explanations/explanations.property.test.ts b/packages/opencode/test/explanations/explanations.property.test.ts
+index 6b5829d..99c882c 100644
+--- a/packages/opencode/test/explanations/explanations.property.test.ts
++++ b/packages/opencode/test/explanations/explanations.property.test.ts
+@@ -569,3 +569,54 @@ test("R1/R2: generated explanation prompts retain instructions and section bound
+     { numRuns: 100 },
+   )
+ })
++
++// R1 supplemental validation: explanation requests include current selected code with unsaved changes
++// Kind: invariant
++// Test that explanation prompts using buildExplanationPrompt include the exact selected text
++// and distinguish between saved and current versions when changes are present.
++test("R1: explanation requests include current selected code with unsaved changes", () => {
++  fc.assert(
++    fc.property(
++      fc.record({
++        name: identifier,
++        language: fc.constantFrom("typescript", "javascript", "python"),
++        selectedCode: sourceText,
++        savedCode: sourceText,
++        startLine: fc.integer({ min: 0, max: 100 }),
++      }),
++      (sample) => {
++        // Simulate scenario with unsaved changes - selected differs from saved
++        const text = `// selected\\n${sample.selectedCode}`
++        const saved = `// saved version\\n${sample.savedCode}`
++        
++        const prompt = buildExplanationPrompt({
++          relativePath: `${sample.name}.ts`,
++          languageId: sample.language,
++          text,
++          context: "",
++          startLine: sample.startLine,
++          endLine: sample.startLine + text.split("\\n").length - 1,
++          endCharacter: text.split("\\n").at(-1)!.length,
++        })
++        
++        // 1. Verify prompt includes current selected code (with unsaved changes)
++        expect(prompt).toContain(`\\n${text}\\n`)
++        
++        // 2. Verify prompt does NOT include saved code version (avoiding confusion)
++        expect(prompt).not.toContain(`\\n${saved}\\n`)
++        
++        // 3. Verify text appears in correct section with proper formatting
++        assertCodeBlock(
++          prompt,
++          "Highlighted code (including any unsaved changes):",
++          text,
++          sample.language
++        )
++        
++        // 4. Verify section label is present and correctly formatted
++        expect(prompt).toContain("Highlighted code (including any unsaved changes):")
++      }
++    ),
++    { numRuns: 100 }
++  )
++})
+\ No newline at end of file

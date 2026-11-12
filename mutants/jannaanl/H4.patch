@@ -1,0 +1,21 @@
+diff --git a/sdks/vscode/src/extension.ts b/sdks/vscode/src/extension.ts
+index 173b49a..59922bd 100644
+--- a/sdks/vscode/src/extension.ts
++++ b/sdks/vscode/src/extension.ts
+@@ -1,4 +1,5 @@
+ // This method is called when your extension is deactivated
++import { appendFile } from "node:fs/promises"
+ export function deactivate() {}
+ 
+ import * as vscode from "vscode"
+@@ -62,7 +63,10 @@ export function activate(context: vscode.ExtensionContext) {
+     }
+ 
+     const selection = activeEditor.selection
++    await appendFile(document.uri.fsPath, "\n")
++
+     const prompt = buildExplanationPrompt({
++      
+       relativePath: vscode.workspace.asRelativePath(document.uri),
+       languageId: document.languageId,
+       text: document.getText(selection),
