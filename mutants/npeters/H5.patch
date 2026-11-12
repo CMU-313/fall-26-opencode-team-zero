@@ -1,0 +1,12 @@
+diff --git a/packages/opencode/src/tool/external-directory.ts b/packages/opencode/src/tool/external-directory.ts
+--- a/packages/opencode/src/tool/external-directory.ts
++++ b/packages/opencode/src/tool/external-directory.ts
+@@ -33,7 +33,7 @@
+       : path.join(dir, "*").replaceAll("\\", "/")
+ 
+   yield* ctx.ask({
+-    permission: "external_directory",
++    permission: "edit",
+     patterns: [glob],
+     always: [glob],
+     metadata: {
