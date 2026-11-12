@@ -70,3 +70,54 @@ The Stryker survivors showed gaps around explanation locations, invalid editor s
 - To catch the remaining mutants, I added properties that check the instructions and formatting in explanation and suggestion requests. They check that requests still include teaching instructions, tell the AI not to change files, and keep sections separated correctly. This caught mutants that deleted instructions or inserted unwanted text. These checks cover more details than my original acceptance criteria.
 - No example-based tests were added. All five hand-written mutants remained killed, and the Stryker score increased from 52.11% (37/71) to 100% (71/71). All 11 properties and the package typecheck passed.
 - I did not classify any mutants as equivalent because they changed the request text or the extension’s behavior. My original tests missed those changes, but the stronger tests caught them. Since none were excluded as equivalent, the adjusted mutation score is also 100%.
+
+## Agent Failure Case
+- Prompt: "Suggest one fast-check property for R1: explanation requests include the current selected code, including unsaved changes. Use buildExplanationPrompt"
+- Output: 
+![Opencode transcript showing the suggested property](agent-transcript1.png)
+![Opencode transcript showing the suggested property](agent-transcript2.png)
+The property was saved in `mutants/jannaanl/A1.patch`
+- Survived Mutant: H5 (`mutants/jannaanl/H5.patch`) which changed `input.text` to `input.text.trim()`. This removed leading and trailing whitespace from the selected code, violating R1’s requirement to preserve the selected code exactly. The property “explanation requests follow unsaved variable renames” still passed with H5 applied.
+
+```
+jannalu@jannas-mbp-6 opencode % bun test test/explanations/explanations.property.test.ts -t "^R1:"                                                                         
+bun test v1.4.4 (38afee6c8)
+
+test/explanations/explanations.property.test.ts:
+✓ R1: explanation requests follow unsaved variable renames [767.30ms]
+ 1 pass
+ 5 filtered out
+ 3 fail
+ 1419 expect() calls
+Ran 4 tests across 1 file. 
+```
+- Why it was weak: The property generated variable renames, but its selected code had no leading or trailing whitespace. Calling `.trim()` therefore left the generated selections unchanged, so the property could not detect H5. It checked whether updated variable names were included, but did not generate the whitespace boundaries needed to check exact preservation.
+- Strengthened version: I added generators for leading and trailing whitespaces (`fc.constantFrom(" ", "\t", "\n", " \t\n"),
+fc.constantFrom(" ", "\t", "\n", "\n \t")`) and put the whitespace around every generated selection (`const text = ${leading}// selected ${name}\n${code}${trailing}`). Then I checked that the code block preserves the selection exactly (`expect(block).toBe(${opening}\n${text}\n${fence}`).
+
+After applying the strengthened property and running it against H5:
+
+``` 
+% bun test test/explanations/explanations.property.test.ts -t "R1: explanation requests preserve selected text verbatim"
+
+test/explanations/explanations.property.test.ts:
+✓ R1: explanation requests preserve selected text verbatim [321.01ms]
+
+ 1 pass
+ 8 filtered out
+ 0 fail
+ 1232 expect() calls
+```
+
+```
+% git apply mutants/jannaanl/H5.patch
+
+% bun test test/explanations/explanations.property.test.ts -t "R1: explanation requests preserve selected text verbatim"
+
+✗ R1: explanation requests preserve selected text verbatim [10.91ms]
+
+ 0 pass
+ 8 filtered out
+ 1 fail
+ 12 expect() calls
+ ```
