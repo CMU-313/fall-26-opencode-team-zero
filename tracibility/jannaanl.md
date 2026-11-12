@@ -121,3 +121,12 @@ test/explanations/explanations.property.test.ts:
  1 fail
  12 expect() calls
  ```
+
+## Red Team
+Anjali Dadlani (anjalid, T3A Party) sent three mutants in [her comment on PR #45](https://github.com/CMU-313/fall-26-opencode-team-zero/pull/45) written against commit 9e0d057. I applied each change independently and ran `bun test test/explanations/explanations.property.test.ts test/suggestions/suggestions.property.test.ts` from packages/opencode. 
+
+| Mutant | Target Requirement | Result | 
+|---|---|---|
+| RT1: Extends the earlier-code context to include the selected code. | R2 | Killed: The property checks the exact contents of the earlier-code section, so it detected that the mutant incorrectly included the selected code in that section.|
+| RT2: Removes one backtick from the code block’s border, which could make the block end too early. | R1 | Killed: My properties generate selected code containing backticks and check that the surrounding fence is longer. Removing + 1 broke this check, catching a change that could make the code block end too early. |
+| RT3: Weakens “Do not modify any files” to allow changes that might be necessary. | R5 | Killed: My properties check that suggestion prompts clearly prohibit file changes. The mutant allowed changes when considered necessary, so it failed the instruction checks. |
