@@ -86,4 +86,23 @@ I was unable to copy the session to clipboard possibly because I use a mac.
 
 - surviving mutant: H6 survived (with 1 pass and 0 fail) the opencode written test in properties-opencode.test.ts.
 - why the property was too weak: it only checked that there was an emission to the log for an allowed command, but failed to account for the name of the specific rule matching the log. When everything is reported the same there is no difference in the reaction to the reported output.
-- strengthened version and evidence: 
+- strengthened version and evidence: I added a test of a specific command (bash) to ensure that the output would show specific commands getting put into the log. Instead of a generic * being compared, the actual commands are tested.
+
+'''text
+bun test packages/opencode/test/permission/properties-opencode.test.ts 
+ R2: every allowed command emits an audit record identifying it [200.03ms]
+
+ 1 pass
+ 0 fail
+ 200 expect() calls
+Ran 1 test across 1 file.
+
+git apply mutants/npeters/H6.patch
+bun test packages/opencode/test/permission/properties-opencode.test.ts 
+✗ R2: every allowed command emits an audit record identifying it [186.43ms]
+
+ 0 pass
+ 1 fail
+ 6 expect() calls
+Ran 1 test across 1 file.
+'''

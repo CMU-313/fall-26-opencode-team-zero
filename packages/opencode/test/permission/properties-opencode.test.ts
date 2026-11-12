@@ -30,13 +30,14 @@ it.instance(
     Effect.gen(function* () {
       const permission = yield* Permission.Service
       const bridge = yield* EffectBridge.make()
-      const ruleset = Permission.fromConfig({ "*": "allow" })
+      const ruleset = Permission.fromConfig({ "*": "allow", bash: "allow" })
 
       yield* Effect.promise(() =>
         fc.assert(
           fc.asyncProperty(commands, async (command) => {
             logs.length = 0
-            expect(Permission.evaluate("bash", command, ruleset).action).toBe("allow")
+            const expected = { permission: "bash", pattern: "*", action: "allow" as const }
+            expect(Permission.evaluate("bash", command, ruleset)).toEqual(expected)
 
             await bridge.promise(
               permission.ask({
@@ -54,7 +55,7 @@ it.instance(
               {
                 permission: "bash",
                 pattern: command,
-                action: { permission: "*", pattern: "*", action: "allow" },
+                action: expected,
               },
             ])
           }),
