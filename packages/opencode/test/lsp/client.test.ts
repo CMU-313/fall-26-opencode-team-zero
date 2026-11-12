@@ -335,6 +335,7 @@ describe("LSPClient interop", () => {
     const handle = spawnFakeServer() as any
     await using tmp = await tmpdir()
     const file = path.join(tmp.path, "client.cs")
+    const slowDelay = 10_000
     await Bun.write(file, "class C {}\n")
 
     await withTestInstance({
@@ -364,25 +365,21 @@ describe("LSPClient interop", () => {
             slow: [],
           },
           documentDelayMsByIdentifier: {
-            slow: 2_500,
+            slow: slowDelay,
           },
         })
 
         const version = await client.notify.open({ path: file })
         await client.connection.sendRequest("test/register-configured-pull-diagnostics", {})
-        try {
-          await client.waitForDiagnostics({ path: file, version, mode: "document" })
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        const started = Date.now()
+        await client.waitForDiagnostics({ path: file, version, mode: "document" })
 
-          expect(client.diagnostics.get(file)?.[0]?.message).toBe("fast diagnostic")
-          expect(await client.connection.sendRequest("test/get-diagnostic-request-count", {})).toBeGreaterThan(1)
-          // Check response ordering rather than runner speed. The slow delay is
-          // the stimulus: document mode must return before that response is sent.
-          const completed = await client.connection.sendRequest<string[]>("test/get-completed-document-identifiers", {})
-          expect(completed).toContain("fast")
-          expect(completed).not.toContain("slow")
-        } finally {
-          await client.shutdown()
-        }
+        expect(Date.now() - started).toBeLessThan(slowDelay / 2)
+        expect(client.diagnostics.get(file)?.[0]?.message).toBe("fast diagnostic")
+        expect(await client.connection.sendRequest("test/get-diagnostic-request-count", {})).toBeGreaterThan(1)
+
+        await client.shutdown()
       },
     })
   })

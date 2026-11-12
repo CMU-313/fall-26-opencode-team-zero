@@ -1,0 +1,14 @@
+{
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test test/agent/learn-mode.property.test.ts"
+  },
+  "mutate": [
+    "src/agent/agent.ts:120-121",
+    "src/agent/agent.ts:172-173",
+    "src/agent/agent.ts:189-195"
+  ],
+  "coverageAnalysis": "off",
+  "concurrency": 1,
+  "reporters": ["html", "clear-text", "progress"]
+}

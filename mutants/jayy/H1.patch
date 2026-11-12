@@ -1,0 +1,13 @@
+diff --git a/packages/opencode/src/command/template/newcomer.txt b/packages/opencode/src/command/template/newcomer.txt
+index b67b4a6..de6b74d 100644
+--- a/packages/opencode/src/command/template/newcomer.txt
++++ b/packages/opencode/src/command/template/newcomer.txt
+@@ -26,7 +26,7 @@ Trace one representative feature or request through the codebase in order. Use a
+ Use a Markdown table with the columns `Step`, `Action`, and `Expected outcome`. Keep the sequence short and concrete.
+ 
+ ## Development setup
+-Present a Markdown table with the columns `Task`, `Command`, `Run from`, and `Notes`. Include installation, development, focused testing, linting, typechecking, and code generation only when applicable. Copy commands from executable project sources such as package scripts, task files, or CI configuration; do not guess commands. Clearly mark prerequisites and commands that require external services.
++Present a Markdown table with the columns `Task`, `Command`, and `Notes`. Include installation, development, focused testing, linting, typechecking, and code generation only when applicable. Copy commands from executable project sources such as package scripts, task files, or CI configuration; do not guess commands. Clearly mark prerequisites and commands that require external services.
+ 
+ ## First contribution ideas
+ Present two or three low-risk starter areas in a Markdown table with the columns `Area`, `Why it is approachable`, `Start with`, and `How to verify`. Recommend only areas supported by the repository structure. Prefer isolated documentation, tests, messages, configuration, or small leaf features over core orchestration, generated code, migrations, security-sensitive code, or broad refactors. Do not claim that an issue exists or that a change is needed unless the repository provides evidence.

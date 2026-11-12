@@ -57,12 +57,25 @@ jobs:
             turbo-${{ runner.os }}-${{ hashFiles('turbo.json', '**/package.json') }}-
             turbo-${{ runner.os }}-
 
+      - name: Run group property tests
+        timeout-minutes: 2
+        working-directory: packages/tui
+        run: bun test test/util/repository-functionality.property.test.ts
+
       - name: Run unit tests
         timeout-minutes: 20
         # Default turbo concurrency (10) oversubscribes ubuntu-latest's 4
         # vCPUs across 5 packages' test tasks running at once — same
         # contention issue typecheck.yml already caps for tsgo.
         run: GITHUB_ACTIONS=false bun turbo test --concurrency=4
+
+      - name: Run newcomer property tests
+        working-directory: packages/opencode
+        run: bun test test/command/newcomer.property.test.ts
+
+      - name: Run Learn Mode property tests
+        working-directory: packages/opencode
+        run: bun test test/agent/learn-mode.property.test.ts
 
       - name: Check generated client
         timeout-minutes: 5

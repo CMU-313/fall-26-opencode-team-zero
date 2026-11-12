@@ -1,0 +1,12 @@
+diff --git a/packages/opencode/src/agent/agent.ts b/packages/opencode/src/agent/agent.ts
+--- a/packages/opencode/src/agent/agent.ts
++++ b/packages/opencode/src/agent/agent.ts
+@@ -192,6 +192,6 @@
+                 glob: "allow",
+                 grep: "allow",
+                 webfetch: "allow",
+-                websearch: "allow",
++                websearch: "ask",
+               }),
+             ),
+             mode: "primary",

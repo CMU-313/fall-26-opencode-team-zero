@@ -1,0 +1,12 @@
+diff --git a/packages/opencode/src/agent/agent.ts b/packages/opencode/src/agent/agent.ts
+--- a/packages/opencode/src/agent/agent.ts
++++ b/packages/opencode/src/agent/agent.ts
+@@ -170,6 +170,6 @@
+                   [path.join(Global.Path.data, "plans", "*")]: "allow",
+                 },
+                 edit: {
+-                  "*": "deny",
++                  "*": "allow",
+                   [path.join(".opencode", "plans", "*.md")]: "allow",
+                   [path.relative(ctx.worktree, path.join(Global.Path.data, path.join("plans", "*.md")))]: "allow",
+                 },

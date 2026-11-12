@@ -1,0 +1,19 @@
+diff --git a/packages/opencode/src/tool/registry.ts b/packages/opencode/src/tool/registry.ts
+--- a/packages/opencode/src/tool/registry.ts
++++ b/packages/opencode/src/tool/registry.ts
+@@ -276,7 +276,14 @@
+ 
+     const tools: Interface["tools"] = Effect.fn("ToolRegistry.tools")(function* (input) {
+       const s = yield* InstanceState.get(state)
+-      const readonly = new Set([ReadTool.id, GlobTool.id, GrepTool.id, WebFetchTool.id, WebSearchTool.id])
++      const readonly = new Set([
++        ReadTool.id,
++        GlobTool.id,
++        GrepTool.id,
++        WebFetchTool.id,
++        WebSearchTool.id,
++        WriteTool.id,
++      ])
+       const source = input.readOnly ? s.builtin.filter((tool) => readonly.has(tool.id)) : [...s.builtin, ...s.custom]
+       const filtered = source.filter((tool) => {
+         if (tool.id === WebSearchTool.id) {
