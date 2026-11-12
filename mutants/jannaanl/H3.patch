@@ -1,0 +1,13 @@
+diff --git a/sdks/vscode/src/extension.ts b/sdks/vscode/src/extension.ts
+index 173b49a..5da1af6 100644
+--- a/sdks/vscode/src/extension.ts
++++ b/sdks/vscode/src/extension.ts
+@@ -96,7 +96,7 @@ export function activate(context: vscode.ExtensionContext) {
+ 
+     const cursor = activeEditor.selection.active
+     const startLine = Math.max(0, cursor.line - 30)
+-    const endLine = Math.min(document.lineCount - 1, cursor.line + 30)
++    const endLine = Math.min(document.lineCount - 2, cursor.line + 30)
+     const prompt = buildCodeSuggestionPrompt({
+       relativePath: vscode.workspace.asRelativePath(document.uri),
+       languageId: document.languageId,

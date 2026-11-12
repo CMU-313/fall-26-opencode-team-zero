@@ -1,0 +1,13 @@
+diff --git a/sdks/vscode/src/extension.ts b/sdks/vscode/src/extension.ts
+index 173b49a..e62c211 100644
+--- a/sdks/vscode/src/extension.ts
++++ b/sdks/vscode/src/extension.ts
+@@ -68,7 +68,7 @@ export function activate(context: vscode.ExtensionContext) {
+       text: document.getText(selection),
+       // Include earlier definitions without language-specific parsing or a line
+       // cutoff. Read the editor buffer so unsaved helper changes are included.
+-      context: document.getText(new vscode.Range(0, 0, selection.start.line, selection.start.character)),
++      context: document.getText(new vscode.Range(Math.max(0, selection.start.line - 30), 0, selection.start.line, selection.start.character)),
+       startLine: selection.start.line,
+       endLine: selection.end.line,
+       endCharacter: selection.end.character,
